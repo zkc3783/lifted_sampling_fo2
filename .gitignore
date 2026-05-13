@@ -136,3 +136,7 @@ exp/
 .ycm_extra_conf.py
 .serena/
 docs/
+
+# hint txt
+/*.txt
+
