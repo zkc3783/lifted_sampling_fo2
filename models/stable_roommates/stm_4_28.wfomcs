@@ -1,0 +1,27 @@
+\forall X: (PairedWithAC(X) | PairedWithAD(X) | PairedWithBC(X) | PairedWithBD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBD(X)) &
+\forall X: (\forall Y: (~PairedWithAC(X) | ~PairedWithBD(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (paired(X, Y) -> paired(Y, X))) &
+\forall X: (\exists Y: (paired(X, Y))) &
+\forall X: (~(paired(X, X))) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAC(X) | PairedWithAC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAD(X) | PairedWithAD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBC(X) | PairedWithBC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBD(X) | PairedWithBD(Y) ))
+V = 28
+
+1.414213562 1 PairedWithAC
+1.414213562 1 PairedWithAD
+1.414213562 1 PairedWithBC
+1.414213562 1 PairedWithBD
+
+|paired| = 28
+|PairedWithAC| + |PairedWithAD| = 14 
+|PairedWithBC| + |PairedWithBD| = 14 
+|PairedWithAC| + |PairedWithBC| = 14 
+|PairedWithAD| + |PairedWithBD| = 14 

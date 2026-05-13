@@ -1,0 +1,42 @@
+[project]
+name = "sampling-fo2"
+version = "0.1.0"
+description = "An exact lifted sampler for two-variable fragments of first-order logic."
+readme = "README.md"
+requires-python = ">=3.11"
+author = [
+      { name = "lucienwang1009", email = "lucienwang1009@gmail.com" }
+]
+dependencies = [
+    "tqdm>=4.67.1",
+    "contexttimer>=0.3.3",
+    "lark>=1.2.2",
+    "loguru>=0.7.0",
+    "networkx>=3.2.1",
+    "numpy>=2.0.2",
+    "pandas>=2.3.1",
+    "prettyprinttree==2.0.1",
+    "cmd2==2.7.0",
+    "python-flint>=0.8.0",
+    "python-sat>=1.8.dev17",
+    "symengine>=0.14.1",
+    "sympy>=1.14.0",
+]
+
+[project.scripts]
+sampler = "sampling_fo2.sampler:main"
+wfoms = "wfomc.solver:main"
+
+[tool.uv.sources]
+wfomc = { git = "https://github.com/yuanhong-wang/WFOMC.git" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.8",
+    "pytest>=9.0.3",
+    "tabulate>=0.9.0",
+]

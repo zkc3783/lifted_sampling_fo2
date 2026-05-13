@@ -1,0 +1,43 @@
+\forall X: (PairedWithAC(X) | PairedWithAD(X) | PairedWithAE(X) | PairedWithBC(X) | PairedWithBD(X) | PairedWithBE(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAE(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithAE(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithBD(X) | ~PairedWithBE(X)) &
+\forall X: (\forall Y: (~PairedWithAD(X) | ~PairedWithBC(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (~PairedWithAD(X) | ~PairedWithBE(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (~PairedWithAE(X) | ~PairedWithBC(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (paired(X, Y) -> paired(Y, X))) &
+\forall X: (\exists Y: (paired(X, Y))) &
+\forall X: (~(paired(X, X))) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAC(X) | PairedWithAC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAD(X) | PairedWithAD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAE(X) | PairedWithAE(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBC(X) | PairedWithBC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBD(X) | PairedWithBD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBE(X) | PairedWithBE(Y) ))
+V = 28
+
+1.414213562 1 PairedWithAC
+1.414213562 1 PairedWithAD
+1.414213562 1 PairedWithAE
+1.414213562 1 PairedWithBC
+1.414213562 1 PairedWithBD
+1.414213562 1 PairedWithBE
+
+|paired| = 28
+|PairedWithAC| + |PairedWithAD| + |PairedWithAE| = 14 
+|PairedWithBC| + |PairedWithBD| + |PairedWithBE| = 14 
+|PairedWithAC| + |PairedWithBC| = 10 
+|PairedWithAD| + |PairedWithBD| = 8 
+|PairedWithAE| + |PairedWithBE| = 10 
