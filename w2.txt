@@ -80,3 +80,23 @@ pynauty无windows版本无法运行Recursive
 
 copilot
 输入以使用Copilot CLI
+
+
+WSL nat模式
+windows：172.26.112.1
+linux：172.26.115.228
+
+git status
+git config --global user.name "zkc3783"
+git config --global user.email "zkc9090@icloud.com"
+
+git config --global http.proxy http://172.26.115.228:7890
+git config --global https.proxy http://172.26.115.228:7890
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/zkc3783/lifted_sampling_fo2.git
