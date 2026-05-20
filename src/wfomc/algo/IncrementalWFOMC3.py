@@ -655,9 +655,9 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
                 nowK = nextK
 
             #if not context.contain_linear_order_axiom(): 
-            perm = np.random.permutation(domain_size)
-            Sampled_1type = Sampled_1type[perm]
-            Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
+            # perm = np.random.permutation(domain_size)
+            # Sampled_1type = Sampled_1type[perm]
+            # Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((Sampled_1type, Sampled_2table_matrix))
         all_sample_results.append(one_sample_result)
 
@@ -691,9 +691,8 @@ def analyze_all_sample(all_sample_results):
         
         print("-" * (W * (domain_size + 1)))
         print("    Sampled 1-type:")
-        for i in range(domain_size):
-            node_idx = domain_size - i
-            print(f"      e{node_idx}: [{format_cell(sampled_1type[i])}]")
+        for i in range(domain_size,0,-1):
+            print(f"      e{i}: [{format_cell(sampled_1type[i-1])}]")
 
         print("\n    Sampled 2-table:")
         # 2. 打印表头 (Col 标注)
