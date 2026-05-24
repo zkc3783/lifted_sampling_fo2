@@ -552,34 +552,10 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
 
         return cache_root[cache_key].sample()
 
-    def clean1type(cell: Cell) -> list[AtomicFormula]:
-        evidences: set[AtomicFormula] = set()
-        for i, p in enumerate(cell.preds):
-            if p.name.startswith('@') or 'aux' in p.name.lower(): 
-                continue
-            atom = p(*([X] * p.arity))
-            evidences.add(atom) if (cell.code[i]) else evidences.add(~atom)
-        return list(evidences)
-    
-    def clean2table(two_table: FrozenSet[AtomicFormula] = None) -> tuple[list[AtomicFormula], list[AtomicFormula]]:
-        tmp = list(
-            atom for atom in two_table 
-            if not (atom.pred.name.startswith('@') or 'skolem' in atom.pred.name.lower())
-            and len(set(atom.args)) > 1
-            and atom.positive == True
-        )
-        tableab=list(atom for atom in tmp if atom.args[0].name == 'a')
-        tableba_normalized = []
-        for atom in tmp:
-            if atom.args[0].name == 'b':
-                new_atom = AtomicFormula(atom.pred, (a, b), atom.positive)
-                tableba_normalized.append(new_atom)
-        return tableab, tableba_normalized
-
     all_sample_results = []
     for sample_idx in range(sample_times):
         if sample_idx % 100 == 0:
-            print(sample_idx)
+            logger.info(f"Sample {sample_idx}/{sample_times} complete ")
         one_sample_result = []
         for cells, cell_weights, data_root, data_T, data_H, data_Evi in all_sample_data:
 
@@ -590,7 +566,7 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
             Sampled_2table_matrix = np.empty((domain_size, domain_size), dtype=object)
             
             for n in range(domain_size, 0, -1): 
-                m = n-1
+
                 node: SamplingDrNode = data_T[nowK]
                 nk_pairs = node.dp_recursion # [(target_c, nextK), (weight_tuple)]
                
@@ -598,7 +574,7 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
                 current_target_degree = nextK_target_degree # 剩余的递归预算留给下个节点
                 othercs = node.dp_order[target_c] 
 
-                Sampled_1type[n-1] = clean1type(cells[target_c[0]]) 
+                Sampled_1type[n-1] = cells[target_c[0]]
                 if n == 1:  
                     break   
 
@@ -644,7 +620,7 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
 
                         # 不使用 m -= 1，而是根据 oc_new 获取准确的预分配索引 
                         assigned_m = state_to_indices[oc_new].pop(0)
-                        Sampled_2table_matrix[n-1][assigned_m], Sampled_2table_matrix[assigned_m][n-1] = clean2table(samp_2table)
+                        Sampled_2table_matrix[n-1][assigned_m] = samp_2table
 
                         tc_new = tc_old
                         hc_new.array[oc_new] -= 1
@@ -654,21 +630,17 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
                     
                 nowK = nextK
 
-            #if not context.contain_linear_order_axiom(): 
-            # perm = np.random.permutation(domain_size)
-            # Sampled_1type = Sampled_1type[perm]
-            # Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
+            perm = np.random.permutation(domain_size)
+            Sampled_1type = Sampled_1type[perm]
+            Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((Sampled_1type, Sampled_2table_matrix))
         all_sample_results.append(one_sample_result)
 
-    analyze_all_sample(all_sample_results)
     return all_sample_results
 
 def analyze_all_sample(all_sample_results):
 
-    samples = [res[0] for res in all_sample_results] # 假设采样只有一个graph
-    total_samples = len(samples)
-
+   
     def make_hashable(obj):
         if isinstance(obj, dict):
             # 排序以保证字典顺序一致
@@ -683,16 +655,40 @@ def analyze_all_sample(all_sample_results):
         if cell is None:
             return "-"
         return ", ".join(str(item) for item in cell)
-
-    def goodprint(sampled_1type, sampled_2table):
-        domain_size = len(sampled_1type)
+    
+    def clean1type(cell: Cell) -> list[AtomicFormula]:
+        evidences: set[AtomicFormula] = set()
+        for i, p in enumerate(cell.preds):
+            if p.name.startswith('@') or 'aux' in p.name.lower(): 
+                continue
+            atom = p(*([X] * p.arity))
+            evidences.add(atom) if (cell.code[i]) else evidences.add(~atom)
+        return list(evidences)
+    
+    def clean2table(two_table: FrozenSet[AtomicFormula] = None) -> tuple[list[AtomicFormula], list[AtomicFormula]]:
+        tmp = list(
+            atom for atom in two_table 
+            if not (atom.pred.name.startswith('@') or 'skolem' in atom.pred.name.lower())
+            and len(set(atom.args)) > 1
+            and atom.positive == True
+        )
+        tableab=list(atom for atom in tmp if atom.args[0].name == 'a')
+        tableba_normalized = []
+        for atom in tmp:
+            if atom.args[0].name == 'b':
+                new_atom = AtomicFormula(atom.pred, (a, b), atom.positive)
+                tableba_normalized.append(new_atom)
+        return tableab, tableba_normalized
+    
+    def goodprint(print_1type, print_2table):
+        domain_size = len(print_1type)
         # 1. 定义统一的列宽。如果谓词很长，可以把 15 改为 20。
         W = 20
         
         print("-" * (W * (domain_size + 1)))
         print("    Sampled 1-type:")
         for i in range(domain_size,0,-1):
-            print(f"      e{i}: [{format_cell(sampled_1type[i-1])}]")
+            print(f"      e{i}: [{format_cell(print_1type[i-1])}]")
 
         print("\n    Sampled 2-table:")
         # 2. 打印表头 (Col 标注)
@@ -709,23 +705,40 @@ def analyze_all_sample(all_sample_results):
             row_str = f"{row_label:<{W}}"
             
             for j in range(domain_size, 0, -1):
-                cell_val = format_cell(sampled_2table[i-1][j-1])
+                cell_val = format_cell(print_2table[i-1][j-1])
                 # 每个单元格都占 W 宽，左对齐
                 row_str += f"{cell_val:<{W}}"
             print(row_str)
         print("-" * (W * (domain_size + 1)))
+    
+    def cleansample(sample):
+        Sampled_1type, Sampled_2table_matrix = sample
+        domain_size = len(Sampled_1type) 
+        print_1type = np.empty(domain_size, dtype=object)
+        print_2table = np.empty((domain_size, domain_size), dtype=object)
+        print_2table[:] = None
 
-    total_samples = len(samples)
-    W=18
-    printsample = False
-    if total_samples <= 100 or printsample:
-        print(f"Total samples: {total_samples} <= 100. Displaying all samples:")
-        for idx, (sampled_1type, sampled_2table) in enumerate(samples):
-            print(f"Sample {idx+1}:")
-            goodprint(sampled_1type, sampled_2table)
-            if idx > 10:
-                break
+        for i in range(domain_size):
+            print_1type[i] = clean1type(Sampled_1type[i])
+
+        for i in range(domain_size): #这里因为shuffle了所以不是上三角矩阵了
+            for j in range(domain_size):
+                if i == j or ( Sampled_2table_matrix[i][j] is None):
+                    continue
+                print_2table[i][j], print_2table[j][i] = clean2table(Sampled_2table_matrix[i][j])
         
+        return print_1type, print_2table
+
+
+    samples = [res[0] for res in all_sample_results] # 假设采样只有一个graph
+    total_samples = len(samples)
+
+    print(f"Displaying all {total_samples} samples:")
+
+    for idx, sample in enumerate(samples):
+        print(f"Sample {idx+1}:")
+        goodprint(*cleansample(sample))
+
     return
     # 1. 快速计数: 将对象转换为签名并利用 Counter 统计
     signatures= []
@@ -748,7 +761,7 @@ def analyze_all_sample(all_sample_results):
     print("=" * 35)
     for i, (sig, count) in enumerate(sorted_configs):
         print(f"Config {i+1:<4} | {count:<10} | {count/total_samples:<10.4f}")
-        goodprint(*revprint[sig])  # 打印对应签名的样本内容
+        goodprint(*cleansample(revprint[sig]))  # 打印对应签名的样本内容
 
     # 绘图部分
     plt.figure(figsize=(12, 6))

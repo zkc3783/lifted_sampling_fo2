@@ -7,7 +7,7 @@ from contexttimer import Timer
 from wfomc.context import WFOMCContext, IncrementalWFOMC3Context
 from wfomc.network import UnaryEvidenceEncoding
 from wfomc.problems import WFOMCProblem
-from wfomc.algo import Algo,incremental_wfomc3, incremental_wfoms3 
+from wfomc.algo import Algo,incremental_wfomc3, incremental_wfoms3 , analyze_all_sample
 from wfomc.utils import MultinomialCoefficients, Rational, round_rational
 from wfomc.parser import parse_input
 
@@ -62,8 +62,10 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         
         logger.info('Start sampling for {} times', sample_time)
         with Timer() as t:
-            incremental_wfoms3(context, all_sample_data, sample_time)
+            all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time)
         logger.info('Sampling time: {}', t.elapsed)
+        
+        analyze_all_sample(all_sample_results)
 
         return res
         

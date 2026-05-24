@@ -84,6 +84,7 @@ class cnf_problem:
 
 if __name__ == "__main__":
     
+    #stm_5_X.wfomcs / cnf
     preference_graph = np.array([[-1, -1, 3, 2, 1], 
                                  [-1, -1, 2, 3, 1], 
                                  [2, 1, -1, -1, -1], 
@@ -97,11 +98,21 @@ if __name__ == "__main__":
     # #24:66444
     # #28:77545
     # #32:88565
+
+    # stm_4_X.wfomcs / cnf
     # preference_graph = np.array([[-1, -1, 2, 1],  
     #                              [-1, -1, 3, 1], 
     #                              [1, 2, -1, -1], 
     #                              [1, 2, -1, -1]])                             
-    # agent_counts = [12,12,12,12] 
+    # agent_counts = [12,12,12,12]
+    # #20:5555
+    # #24:6666
+    # #28:7777
+    # #32:8888
+    # #36:9999
+    # #40:10101010
+    # #48:12121212
+
 
     domain_size=sum(agent_counts)
     fname = f"stm_5_{domain_size}.cnf"

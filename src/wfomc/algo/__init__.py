@@ -2,11 +2,12 @@ from enum import Enum
 
 from .IncrementalWFOMC3 import incremental_wfomc3
 from .IncrementalWFOMC3 import incremental_wfoms3
-
+from .IncrementalWFOMC3 import analyze_all_sample
 __all__ = [
 
     "incremental_wfomc3",
-    "incremental_wfoms3"
+    "incremental_wfoms3",
+    "analyze_all_sample"
 ]
 
 
