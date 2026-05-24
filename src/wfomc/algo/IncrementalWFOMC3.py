@@ -1,5 +1,4 @@
 from __future__ import annotations
-import hashlib
 import math
 from collections import defaultdict, Counter
 from itertools import product
@@ -26,16 +25,18 @@ class HashableArrayWrapper:
     """Wraps a NumPy array to make it hashable (for use as a dict key)."""
 
     def __init__(self, input_array: np.ndarray):
-        self.array = input_array.astype(np.uint8, copy=False)
+        array = np.array(input_array, dtype=np.uint8, copy=True, order="C")
+        array.setflags(write=False)
+        self.array = array
+        self._key = (array.shape, array.tobytes())
+        self._hash = hash(self._key)
 
     def __hash__(self):
-        return int(hashlib.sha1(self.array).hexdigest(), 16)
+        return self._hash
 
     def __eq__(self, other):
         if isinstance(other, HashableArrayWrapper):
-            return int(hashlib.sha1(self.array).hexdigest(), 16) == int(
-                hashlib.sha1(other.array).hexdigest(), 16
-            )
+            return self._key == other._key
         return False
 
     def __repr__(self):
@@ -80,8 +81,9 @@ class ConfigUpdater:
             H_layer = defaultdict(list)
             for (tc_old, hc_old), W in H.items():
                 for (tc_new, oc_new), rij in self.t_update_dict[(tc_old, other_c)].items():
-                    hc_new = HashableArrayWrapper(np.array(hc_old.array))
-                    hc_new.array[oc_new] += 1
+                    hc_new_array = np.array(hc_old.array, copy=True)
+                    hc_new_array[oc_new] += 1
+                    hc_new = HashableArrayWrapper(hc_new_array)
                     H_new[(tc_new, hc_new)] += W * rij
                     H_layer[(tc_new, hc_new)].append(((tc_old, oc_new),(W, rij)))
 
@@ -245,8 +247,9 @@ def _make_domain_recursion(
 
         for target_c in target_c_list:
             T = defaultdict(lambda: Rational(0, 1))
-            config_new = HashableArrayWrapper(np.array(config.array, copy=True, dtype=np.uint8))
-            config_new.array[target_c] -= 1
+            config_new_array = np.array(config.array, copy=True, dtype=np.uint8)
+            config_new_array[target_c] -= 1
+            config_new = HashableArrayWrapper(config_new_array)
 
             G = {(target_c, HashableArrayWrapper(np.zeros(c1_type_shape, dtype=np.uint8))): Rational(1, 1)}
             dp_layers = []
@@ -623,7 +626,9 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
                         Sampled_2table_matrix[n-1][assigned_m] = samp_2table
 
                         tc_new = tc_old
-                        hc_new.array[oc_new] -= 1
+                        hc_new_array = np.array(hc_new.array, copy=True)
+                        hc_new_array[oc_new] -= 1
+                        hc_new = HashableArrayWrapper(hc_new_array)
                         
                     nowc = lastc
                     nowcfg = lastcfg
