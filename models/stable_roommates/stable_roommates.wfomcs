@@ -18,15 +18,33 @@
 \forall X: (\forall Y: (~PairedWithAD(X) | ~PairedWithBE(Y) | paired(X, Y))) &
 \forall X: (\forall Y: (~PairedWithAE(X) | ~PairedWithBC(Y) | paired(X, Y))) &
 \forall X: (\forall Y: (paired(X, Y) -> paired(Y, X))) &
-\forall X: (\exists Y: (paired(X, Y))) &
+\forall X: (\exists_{=1} Y: (paired(X, Y))) &
 \forall X: (~(paired(X, X))) &
 \forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAC(X) | PairedWithAC(Y) )) &
 \forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAD(X) | PairedWithAD(Y) )) &
 \forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAE(X) | PairedWithAE(Y) )) &
 \forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBC(X) | PairedWithBC(Y) )) &
 \forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBD(X) | PairedWithBD(Y) )) &
-\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBE(X) | PairedWithBE(Y) ))
-V = 12
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBE(X) | PairedWithBE(Y) )) &
+\forall X: (~A(X) | PairedWithAC(X) | PairedWithAD(X) | PairedWithAE(X)) &
+\forall X: (~PairedWithAC(X) | A(X)) &
+\forall X: (~PairedWithAC(X) | C(X)) &
+\forall X: (~PairedWithAD(X) | A(X)) &
+\forall X: (~PairedWithAD(X) | D(X)) &
+\forall X: (~PairedWithAE(X) | A(X)) &
+\forall X: (~PairedWithAE(X) | E(X)) &
+\forall X: (~B(X) | PairedWithBC(X) | PairedWithBD(X) | PairedWithBE(X)) &
+\forall X: (~PairedWithBC(X) | B(X)) &
+\forall X: (~PairedWithBC(X) | C(X)) &
+\forall X: (~PairedWithBD(X) | B(X)) &
+\forall X: (~PairedWithBD(X) | D(X)) &
+\forall X: (~PairedWithBE(X) | B(X)) &
+\forall X: (~PairedWithBE(X) | E(X)) &
+\forall X: (~C(X) | PairedWithAC(X) | PairedWithBC(X)) &
+\forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X)) &
+\forall X: (~E(X) | PairedWithAE(X) | PairedWithBE(X))
+
+V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11}
 
 1.414213562 1 PairedWithAC
 1.414213562 1 PairedWithAD
@@ -35,9 +53,5 @@ V = 12
 1.414213562 1 PairedWithBD
 1.414213562 1 PairedWithBE
 
-|paired| = 12
-|PairedWithAC| + |PairedWithAD| + |PairedWithAE| = 6 
-|PairedWithBC| + |PairedWithBD| + |PairedWithBE| = 6 
-|PairedWithAC| + |PairedWithBC| = 4 
-|PairedWithAD| + |PairedWithBD| = 4 
-|PairedWithAE| + |PairedWithBE| = 4 
+
+A(a0), A(a1), A(a2), B(a3), B(a4), B(a5), C(a6), C(a7), D(a8), D(a9), E(a10), E(a11)

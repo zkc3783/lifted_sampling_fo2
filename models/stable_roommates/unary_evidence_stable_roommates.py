@@ -26,7 +26,8 @@ import numpy as np
 #   should be set BELOW minimum preference for stable roommates
 NEG_INF = -1
 
-
+#Name of output .wfomcs file
+F_OUT = "stable_roommates.wfomcs"
 
 def create_class_clauses(n_classes, preference_graph):
     if n_classes > 26:
@@ -63,7 +64,7 @@ def create_pairs(n_classes):
     base = ord('A')
     clause = f"\\forall X: (\\forall Y: (" + "paired(X, Y) -> paired(Y, X)" + "))"
     out.append(clause)
-    clause = f"\\forall X: (\\exists Y: (paired(X, Y)))"
+    clause = "\\forall X: (\\exists_{=1} Y: (paired(X, Y)))"
     out.append(clause)
     clause = f"\\forall X: (~(paired(X, X)))"
     out.append(clause)
@@ -111,6 +112,22 @@ def create_stability(preference_graph):
 
     return out, ccs_out
 
+def unary_evidence_clauses(preference_graph, agents):
+    out = []
+    base = ord('A')
+    for i in range(len(agents)):
+        if preference_graph[i, i] > NEG_INF:
+            out.append(f"\\forall X: (~PairedWith{chr(i + base)}{chr(i + base)}(X) | {chr(base + i)}(X))")
+        lpart = " | ".join(f"PairedWith{chr(j + base)}{chr(i + base)}(X)" for j in range(i) if preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF)
+        selfpart = f"PairedWith{chr(i + base)}{chr(i + base)}(X)" if preference_graph[i, i] > NEG_INF else ""
+        rpart = " | ".join(f"PairedWith{chr(i + base)}{chr(j + base)}(X)" for j in range(i + 1, len(agents)) if preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF) if i < len(agent_counts) - 1 else ""
+        out.append(f"\\forall X: (~{chr(base + i)}(X) | " + " | ".join(x for x in (lpart, selfpart, rpart) if x != "") + ")")
+        for j in range(i + 1, len(agents)):
+            if preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF:
+                out.append(f"\\forall X: (~PairedWith{chr(i + base)}{chr(j + base)}(X) | {chr(base + i)}(X))")
+                out.append(f"\\forall X: (~PairedWith{chr(i + base)}{chr(j + base)}(X) | {chr(base + j)}(X))")
+    return out
+
 
 
 if __name__ == "__main__":
@@ -121,6 +138,9 @@ if __name__ == "__main__":
     #negative preferences work, but must be HIGHER than NEG_INF paramter 
     #   (reserved for impossible pairs, can be set above)
     #use NEG_INF preferences in stable marriages to differentiate men and women
+
+    #ENCODING = "ccs"
+    ENCODING = "evidence"
 
     # preference_graph = np.array([[2, 1, 0, 4], 
     #                              [1, 4, 3, 0], 
@@ -134,24 +154,8 @@ if __name__ == "__main__":
                                  [1, 2, -1, -1, -1]]) 
 
     agent_counts = [3,3,2,2,2] 
-    # #12:33222
-    # #16:44233
-    # #20:55433
-    # #24:66444
-    # #28:77545
-    # #32:88565
-
-
-    '''stm_{sum(agent_counts)}_4_wfomcs''' 
-    # preference_graph = np.array([[-1, -1, 2, 1],  
-    #                              [-1, -1, 3, 1], 
-    #                              [1, 2, -1, -1], 
-    #                              [1, 2, -1, -1]])
-    # agent_counts = [13,13,13,13] 
-    # #4x:xxxx
 
     domain_size = sum(agent_counts)
-    filename = f"stm_5_{domain_size}.wfomcs"
 
     if domain_size % 2 == 1:
         raise RuntimeError("DOMAIN CANNOT BE ODD SIZE!")
@@ -167,13 +171,19 @@ if __name__ == "__main__":
     new_clauses = create_pairs(preference_graph.shape[0])
     for clause in new_clauses:
         clauses.append(clause)
-
+    if ENCODING == "evidence":
+        new_clauses = unary_evidence_clauses(preference_graph, agent_counts)
+        for clause in new_clauses:
+            clauses.append(clause)
     
-    with open(filename, "w") as f:
+    with open(F_OUT, "w") as f:
         
         f.write(" &\n".join(clauses))
-        f.write("\n")
-        f.write(f"V = {domain_size}\n")
+        f.write("\n\n")
+        if ENCODING == "ccs":
+            f.write(f"V = {domain_size}\n")
+        elif ENCODING == "evidence":
+            f.write("V = {" + ", ".join(f"a{i}" for i in range(sum(agent_counts))) + "}\n")
         f.write("\n")
         base = ord('A')
         for i in range(preference_graph.shape[0]):
@@ -185,20 +195,27 @@ if __name__ == "__main__":
                 f.write(f"1.414213562 1 PairedWith{chr(base + i)}{chr(base + j)}\n")
 
         #each agent is paired to exactly one other
-        f.write(f"\n|paired| = {domain_size}\n")
+        #f.write(f"\n|paired| = {domain_size}\n")
 
-        #ccs specifying number of agents in each class
-        base = ord("A")
-        for i in range(preference_graph.shape[0]):
-            line = [f"|PairedWith{chr(base + i)}{chr(base + j)}|" for j in range(preference_graph.shape[0]) \
-                     if i < j and preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF]
-            if preference_graph[i, i] > NEG_INF and preference_graph[i, i] > NEG_INF:
-                line = line + [f"2|PairedWith{chr(base + i)}{chr(base + i)}|"]
-            line = line + [f"|PairedWith{chr(base + j)}{chr(base + i)}|" for j in range(preference_graph.shape[0]) \
-                            if j < i and preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF]
-            f.write(" + ".join(line) + f" = {2 * agent_counts[i]} \n")
+        if ENCODING == "ccs":    
+            #ccs specifying number of agents in each class
+            base = ord("A")
+            for i in range(preference_graph.shape[0]):
+                line = [f"|PairedWith{chr(base + i)}{chr(base + j)}|" for j in range(preference_graph.shape[0]) \
+                        if i < j and preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF]
+                if preference_graph[i, i] > NEG_INF and preference_graph[i, i] > NEG_INF:
+                    line = line + [f"2|PairedWith{chr(base + i)}{chr(base + i)}|"]
+                line = line + [f"|PairedWith{chr(base + j)}{chr(base + i)}|" for j in range(preference_graph.shape[0]) \
+                                if j < i and preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF]
+                f.write(" + ".join(line) + f" = {2 * agent_counts[i]} \n")
 
-        for i in range(preference_graph.shape[0]):
-            for j in range(i + 1, preference_graph.shape[1]):
-                if preference_graph[i, i] > preference_graph[i, j] and preference_graph[j, j] > preference_graph[j, i]:
-                    f.write(f"|PairedWith{chr(base + i)}{chr(base + j)}| <= 2 \n")
+            for i in range(preference_graph.shape[0]):
+                for j in range(i + 1, preference_graph.shape[1]):
+                    if preference_graph[i, i] > preference_graph[i, j] and preference_graph[j, j] > preference_graph[j, i]:
+                        f.write(f"|PairedWith{chr(base + i)}{chr(base + j)}| <= 2 \n")
+        elif ENCODING == "evidence":
+            #f.write(", ".join(f"{2}(a{sum(agent_counts[:i]) + cur_agent})" for i, agent_count in enumerate(agent_counts) for cur_agent in range(agent_count)))
+            base = ord('A')
+            f.write("\n\n")
+            f.write(", ".join(f"{chr(base + i)}(a{sum(agent_counts[:i]) + cur_agent})" for i, agent_count in enumerate(agent_counts) for cur_agent in range(agent_count)))
+            f.write("\n")

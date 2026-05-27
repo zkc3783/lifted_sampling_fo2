@@ -739,12 +739,13 @@ def analyze_all_sample(all_sample_results):
     total_samples = len(samples)
 
     print(f"Displaying all {total_samples} samples:")
-
+    #return #
     for idx, sample in enumerate(samples):
         print(f"Sample {idx+1}:")
         goodprint(*cleansample(sample))
+        break #
 
-    return
+    return #
     # 1. 快速计数: 将对象转换为签名并利用 Counter 统计
     signatures= []
     revprint = {}
