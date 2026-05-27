@@ -51,14 +51,15 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         factorize_unary_evidence = True #algo in { Algo.INCREMENTAL3, Algo.INCREMENTAL32 }
 
         context = IncrementalWFOMC3Context( problem, unary_evidence_encoding, factorize_unary_evidence )
+        
+        analyze_samples = True if sample_time <= 10 else False
+
         if algo == Algo.INCREMENTAL3:
             wfomc_fn = incremental_wfomc3
             wfoms_fn = incremental_wfoms3
-            analyze_samples = True
         elif algo == Algo.INCREMENTAL32:
             wfomc_fn = incremental_wfomc32
             wfoms_fn = incremental_wfoms32
-            analyze_samples = True
         else:
             raise ValueError(f"Unsupported algorithm: {algo}")
     

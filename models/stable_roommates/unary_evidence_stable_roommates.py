@@ -26,9 +26,6 @@ import numpy as np
 #   should be set BELOW minimum preference for stable roommates
 NEG_INF = -1
 
-#Name of output .wfomcs file
-F_OUT = "stable_roommates.wfomcs"
-
 def create_class_clauses(n_classes, preference_graph):
     if n_classes > 26:
         print("Too many classes")
@@ -141,21 +138,36 @@ if __name__ == "__main__":
 
     #ENCODING = "ccs"
     ENCODING = "evidence"
-
+    '''str_{sum(agent_counts)}_4_wfomcs''' 
     # preference_graph = np.array([[2, 1, 0, 4], 
     #                              [1, 4, 3, 0], 
     #                              [0, 3, 2, 1], 
     #                              [0, 2, 1, 4]]) #example preference graph for stable roommates
+    # agent_counts = [2,2,2,2]
+
+    '''stm_{sum(agent_counts)}_4_wfomcs'''
+    preference_graph = np.array([[-1, -1, 2, 1],  
+                                 [-1, -1, 3, 1], 
+                                 [1, 2, -1, -1], 
+                                 [1, 2, -1, -1]])  
+    agent_counts = [5,5,5,5] 
+
     '''stm_{sum(agent_counts)}_5_wfomcs''' 
-    preference_graph = np.array([[-1, -1, 3, 2, 1], 
-                                 [-1, -1, 2, 3, 1], 
-                                 [2, 1, -1, -1, -1], 
-                                 [1, 2, -1, -1, -1], 
-                                 [1, 2, -1, -1, -1]]) 
-
-    agent_counts = [3,3,2,2,2] 
-
+    # preference_graph = np.array([[-1, -1, 3, 2, 1], 
+    #                              [-1, -1, 2, 3, 1], 
+    #                              [2, 1, -1, -1, -1], 
+    #                              [1, 2, -1, -1, -1], 
+    #                              [1, 2, -1, -1, -1]]) 
+    # agent_counts = [8,8,5,6,5] 
+    # #12:33222
+    # #16:44233
+    # #20:55433
+    # #24:66444
+    # #28:77545
+    # #32:88565
     domain_size = sum(agent_counts)
+    agent_size = len(agent_counts)
+    filename = f"stmu_{agent_size}_{domain_size}.wfomcs"
 
     if domain_size % 2 == 1:
         raise RuntimeError("DOMAIN CANNOT BE ODD SIZE!")
@@ -176,7 +188,7 @@ if __name__ == "__main__":
         for clause in new_clauses:
             clauses.append(clause)
     
-    with open(F_OUT, "w") as f:
+    with open(filename, "w") as f:
         
         f.write(" &\n".join(clauses))
         f.write("\n\n")

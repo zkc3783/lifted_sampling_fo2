@@ -1,0 +1,37 @@
+\forall X: (PairedWithAC(X) | PairedWithAD(X) | PairedWithBC(X) | PairedWithBD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBD(X)) &
+\forall X: (\forall Y: (~PairedWithAC(X) | ~PairedWithBD(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (paired(X, Y) -> paired(Y, X))) &
+\forall X: (\exists_{=1} Y: (paired(X, Y))) &
+\forall X: (~(paired(X, X))) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAC(X) | PairedWithAC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAD(X) | PairedWithAD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBC(X) | PairedWithBC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBD(X) | PairedWithBD(Y) )) &
+\forall X: (~A(X) | PairedWithAC(X) | PairedWithAD(X)) &
+\forall X: (~PairedWithAC(X) | A(X)) &
+\forall X: (~PairedWithAC(X) | C(X)) &
+\forall X: (~PairedWithAD(X) | A(X)) &
+\forall X: (~PairedWithAD(X) | D(X)) &
+\forall X: (~B(X) | PairedWithBC(X) | PairedWithBD(X)) &
+\forall X: (~PairedWithBC(X) | B(X)) &
+\forall X: (~PairedWithBC(X) | C(X)) &
+\forall X: (~PairedWithBD(X) | B(X)) &
+\forall X: (~PairedWithBD(X) | D(X)) &
+\forall X: (~C(X) | PairedWithAC(X) | PairedWithBC(X)) &
+\forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X))
+
+V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, a31, a32, a33, a34, a35, a36, a37, a38, a39}
+
+1.414213562 1 PairedWithAC
+1.414213562 1 PairedWithAD
+1.414213562 1 PairedWithBC
+1.414213562 1 PairedWithBD
+
+
+A(a0), A(a1), A(a2), A(a3), A(a4), A(a5), A(a6), A(a7), A(a8), A(a9), B(a10), B(a11), B(a12), B(a13), B(a14), B(a15), B(a16), B(a17), B(a18), B(a19), C(a20), C(a21), C(a22), C(a23), C(a24), C(a25), C(a26), C(a27), C(a28), C(a29), D(a30), D(a31), D(a32), D(a33), D(a34), D(a35), D(a36), D(a37), D(a38), D(a39)

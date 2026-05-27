@@ -1,0 +1,57 @@
+\forall X: (PairedWithAC(X) | PairedWithAD(X) | PairedWithAE(X) | PairedWithBC(X) | PairedWithBD(X) | PairedWithBE(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithAE(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAC(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithAE(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAD(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBC(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithAE(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBD(X)) &
+\forall X: (~PairedWithBC(X) | ~PairedWithBE(X)) &
+\forall X: (~PairedWithBD(X) | ~PairedWithBE(X)) &
+\forall X: (\forall Y: (~PairedWithAD(X) | ~PairedWithBC(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (~PairedWithAD(X) | ~PairedWithBE(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (~PairedWithAE(X) | ~PairedWithBC(Y) | paired(X, Y))) &
+\forall X: (\forall Y: (paired(X, Y) -> paired(Y, X))) &
+\forall X: (\exists_{=1} Y: (paired(X, Y))) &
+\forall X: (~(paired(X, X))) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAC(X) | PairedWithAC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAD(X) | PairedWithAD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithAE(X) | PairedWithAE(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBC(X) | PairedWithBC(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBD(X) | PairedWithBD(Y) )) &
+\forall X: (\forall Y: (~paired(X, Y) | ~PairedWithBE(X) | PairedWithBE(Y) )) &
+\forall X: (~A(X) | PairedWithAC(X) | PairedWithAD(X) | PairedWithAE(X)) &
+\forall X: (~PairedWithAC(X) | A(X)) &
+\forall X: (~PairedWithAC(X) | C(X)) &
+\forall X: (~PairedWithAD(X) | A(X)) &
+\forall X: (~PairedWithAD(X) | D(X)) &
+\forall X: (~PairedWithAE(X) | A(X)) &
+\forall X: (~PairedWithAE(X) | E(X)) &
+\forall X: (~B(X) | PairedWithBC(X) | PairedWithBD(X) | PairedWithBE(X)) &
+\forall X: (~PairedWithBC(X) | B(X)) &
+\forall X: (~PairedWithBC(X) | C(X)) &
+\forall X: (~PairedWithBD(X) | B(X)) &
+\forall X: (~PairedWithBD(X) | D(X)) &
+\forall X: (~PairedWithBE(X) | B(X)) &
+\forall X: (~PairedWithBE(X) | E(X)) &
+\forall X: (~C(X) | PairedWithAC(X) | PairedWithBC(X)) &
+\forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X)) &
+\forall X: (~E(X) | PairedWithAE(X) | PairedWithBE(X))
+
+V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19}
+
+1.414213562 1 PairedWithAC
+1.414213562 1 PairedWithAD
+1.414213562 1 PairedWithAE
+1.414213562 1 PairedWithBC
+1.414213562 1 PairedWithBD
+1.414213562 1 PairedWithBE
+
+
+A(a0), A(a1), A(a2), A(a3), A(a4), B(a5), B(a6), B(a7), B(a8), B(a9), C(a10), C(a11), C(a12), C(a13), D(a14), D(a15), D(a16), E(a17), E(a18), E(a19)
