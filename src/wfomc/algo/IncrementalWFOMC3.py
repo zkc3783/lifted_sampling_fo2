@@ -7,6 +7,7 @@ from typing import Callable
 import numpy as np
 from loguru import logger
 
+from wfomc.algo.unary_evidence_factor import make_unary_evidence_factor
 from wfomc.cell_graph import build_cell_graphs
 from wfomc.context import IncrementalWFOMC3Context, CountingState
 from wfomc.fol import Const, Pred
@@ -319,6 +320,9 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> RingElement:
         logger.debug("Weight w: {}", w)
 
         unary_mask = context.unary_handler.build_mask(cells)
+        unary_evidence_factor = make_unary_evidence_factor(
+            cells, context.factorized_unary_evidence
+        )
         t_update_dict, data_Evi = build_sample_t_update_dict(rs, n_cells, cs)
         c1_type_shape = (n_cells,) + tuple(cs.c_type_shape)
         data_T = {} 
@@ -332,6 +336,10 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> RingElement:
             if any(context.unary_handler.check(config, unary_mask)):
                 continue
 
+            evidence_factor = unary_evidence_factor(config)
+            if evidence_factor == Rational(0, 1):
+                continue
+
             init_config = np.zeros(c1_type_shape, dtype=np.uint8)
             W = Rational(1, 1)
             for i, n in enumerate(config):
@@ -342,9 +350,9 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> RingElement:
             result_config = domain_recursion(init_config)
 
             if has_lo:
-                term_weight = W * result_config * graph_weight
+                term_weight = W * result_config * graph_weight * evidence_factor
             else:
-                term_weight = MultinomialCoefficients.coef(config) * W * result_config * graph_weight
+                term_weight = MultinomialCoefficients.coef(config) * W * result_config * graph_weight * evidence_factor
 
             WFOMC_result += term_weight
             data_root.append((init_config, term_weight))
@@ -741,10 +749,10 @@ def analyze_all_sample(all_sample_results):
     print(f"Displaying all {total_samples} samples:")
     #return #
     for idx, sample in enumerate(samples):
-        continue
+
         print(f"Sample {idx+1}:")
         goodprint(*cleansample(sample))
-        break #
+
 
     return #
     # 1. 快速计数: 将对象转换为签名并利用 Counter 统计

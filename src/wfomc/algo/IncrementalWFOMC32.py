@@ -9,6 +9,7 @@ from typing import Callable
 import numpy as np
 from loguru import logger
 
+from wfomc.algo.unary_evidence_factor import make_unary_evidence_factor
 from wfomc.cell_graph import build_cell_graphs
 from wfomc.context import CountingState, IncrementalWFOMC3Context
 from wfomc.fol import Const, Pred
@@ -417,6 +418,8 @@ def incremental_wfomc32(context: IncrementalWFOMC3Context) -> tuple[RingElement,
         logger.debug("Weight w: {}", w)
 
         unary_mask = context.unary_handler.build_mask(cells)
+        unary_evidence_factor = make_unary_evidence_factor(cells, context.factorized_unary_evidence)
+
         t_update_dict, data_Evi = build_sample_t_update_dict(rs, n_cells, cs)
         space = ConfigSpace((n_cells,) + tuple(cs.c_type_shape))
         data_T = {}
@@ -430,6 +433,10 @@ def incremental_wfomc32(context: IncrementalWFOMC3Context) -> tuple[RingElement,
             if any(context.unary_handler.check(config, unary_mask)):
                 continue
 
+            evidence_factor = unary_evidence_factor(config)
+            if evidence_factor == Rational(0, 1):
+                continue
+
             init_list = list(space.zero)
             W = Rational(1, 1)
             for i, n in enumerate(config):
@@ -441,9 +448,9 @@ def incremental_wfomc32(context: IncrementalWFOMC3Context) -> tuple[RingElement,
             result_config = domain_recursion(init_config)
 
             if has_lo:
-                term_weight = W * result_config * graph_weight
+                term_weight = W * result_config * graph_weight * evidence_factor
             else:
-                term_weight = MultinomialCoefficients.coef(config) * W * result_config * graph_weight
+                term_weight = MultinomialCoefficients.coef(config) * W * result_config * graph_weight * evidence_factor
 
             WFOMC_result += term_weight
             data_root.append((init_config, term_weight))

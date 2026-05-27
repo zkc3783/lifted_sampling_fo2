@@ -8,8 +8,16 @@ from math import comb
 from wfomc.fol.sc2 import SC2
 from wfomc.fol.utils import new_predicate, tseitin_transform
 from wfomc.fol.syntax import *
-from wfomc.network import CardinalityConstraint, PartitionConstraint, UnaryEvidenceEncoding, organize_evidence, \
-    unary_evidence_to_ccs, unary_evidence_to_pc
+from wfomc.network import (
+    CardinalityConstraint,
+    EvidenceGroups,
+    PartitionConstraint,
+    UnaryEvidenceEncoding,
+    organize_evidence,
+    unary_evidence_to_ccs,
+    unary_evidence_to_factorized_ccs,
+    unary_evidence_to_pc,
+)
 from wfomc.problems import WFOMCProblem
 from wfomc.utils import Rational, RingElement
 
@@ -23,7 +31,9 @@ class WFOMCContext:
     """
 
     def __init__(self, problem: WFOMCProblem,
-                 unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS):
+                 unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS,
+                 factorize_unary_evidence: bool = False):
+        
         self.problem = deepcopy(problem)
         self.domain: set[Const] = self.problem.domain
         self.sentence: SC2 = self.problem.sentence
@@ -33,6 +43,8 @@ class WFOMCContext:
         self.unary_evidence = self.problem.unary_evidence
 
         self.unary_evidence_encoding = unary_evidence_encoding
+        self.factorize_unary_evidence = factorize_unary_evidence
+        self.factorized_unary_evidence: EvidenceGroups = []
         self.partition_constraint: PartitionConstraint | None = None
         self.element2evidence: dict[Const, set[AtomicFormula]] = dict()
 
@@ -287,7 +299,40 @@ class WFOMCContext:
                 self.cardinality_constraint = CardinalityConstraint()
             self.cardinality_constraint.extend_simple_constraints(ccs)
             self.repeat_factor *= repeat_factor
+    
+    def _factorize_unary_evidence(self) -> bool:
+        """
+        Keep unary evidence out of the cell graph when it can be checked against
+        existing 1-types. Supported algorithms apply the corresponding bucket
+        assignment factor while enumerating cell-count configurations.
+        """
+        if not self.factorize_unary_evidence:
+            return False
+        if self.unary_evidence_encoding != UnaryEvidenceEncoding.CCS:
+            return False
+        if self.problem.contain_linear_order_axiom():
+            return False
+        if self.problem.contain_predecessor_axiom():
+            return False
+        if self.problem.contain_circular_predecessor_axiom():
+            return False
 
+        formula_preds = self.formula.preds()
+        if any(lit.pred not in formula_preds for lit in self.unary_evidence):
+            return False
+
+        self.element2evidence = organize_evidence(self.unary_evidence)
+        self.factorized_unary_evidence, repeat_factor = unary_evidence_to_factorized_ccs(
+            self.element2evidence, self.domain
+        )
+        self.repeat_factor *= repeat_factor
+
+        logger.info(
+            "Factorized unary evidence into {} bucket(s)",
+            len(self.factorized_unary_evidence),
+        )
+        return True
+    
     def _handle_linear_order_axiom(self):
         if self.problem.contain_linear_order_axiom():
             self.leq_pred = Pred('LEQ', 2)
@@ -323,7 +368,8 @@ class WFOMCContext:
 
         # Step 2: Handle unary evidence
         if self.unary_evidence:
-            self._encode_unary_evidence()
+            if not self._factorize_unary_evidence():
+                self._encode_unary_evidence()
 
         # Step 3: Use the new encoding to handle counting quantifiers
         if self.sentence.contain_counting_quantifier():

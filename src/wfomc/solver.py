@@ -48,7 +48,9 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
             logger.info('Modulo counting quantifier is found')
         logger.info(f'Invoke WFOMC with {algo} algorithm and {unary_evidence_encoding} encoding')
 
-        context = IncrementalWFOMC3Context(problem)
+        factorize_unary_evidence = True #algo in { Algo.INCREMENTAL3, Algo.INCREMENTAL32 }
+
+        context = IncrementalWFOMC3Context( problem, unary_evidence_encoding, factorize_unary_evidence )
         if algo == Algo.INCREMENTAL3:
             wfomc_fn = incremental_wfomc3
             wfoms_fn = incremental_wfoms3
@@ -56,7 +58,7 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         elif algo == Algo.INCREMENTAL32:
             wfomc_fn = incremental_wfomc32
             wfoms_fn = incremental_wfoms32
-            analyze_samples = False
+            analyze_samples = True
         else:
             raise ValueError(f"Unsupported algorithm: {algo}")
     

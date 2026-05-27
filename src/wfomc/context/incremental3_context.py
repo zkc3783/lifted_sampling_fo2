@@ -57,7 +57,8 @@ def _build_binary_evidence(ext_preds: list[Pred], cnt_preds: list[Pred]) -> list
 
 class IncrementalWFOMC3Context(WFOMCContext):
     def __init__(self, problem: WFOMCProblem,
-                 unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS):
+                 unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS,
+                 factorize_unary_evidence: bool = False):
         # Initialise IncrementalWFOMC3-specific mutable state before calling
         # super().__init__(), because _build() is dispatched from within
         # WFOMCContext.__init__ and needs these to be ready.
@@ -81,7 +82,11 @@ class IncrementalWFOMC3Context(WFOMCContext):
         # Exposed after _build() completes
         self.counting_state: CountingState | None = None
 
-        super().__init__(problem, unary_evidence_encoding)
+        super().__init__(
+            problem,
+            unary_evidence_encoding,
+            factorize_unary_evidence=factorize_unary_evidence,
+        )
 
         self._workaround_for_odd_degree()
 
@@ -141,7 +146,8 @@ class IncrementalWFOMC3Context(WFOMCContext):
             self.formula = self.formula.quantified_formula
 
         if self.unary_evidence:
-            self._encode_unary_evidence()
+            if not self._factorize_unary_evidence():
+                self._encode_unary_evidence()
 
         if self.sentence.contain_counting_quantifier():
             self._handle_counting_quantifier()

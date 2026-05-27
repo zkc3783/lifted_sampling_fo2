@@ -1,3 +1,4 @@
+import math
 from abc import ABC
 from collections import defaultdict
 from enum import Enum
@@ -124,6 +125,7 @@ class UnaryEvidenceEncoding(Enum):
     def __str__(self):
         return self.value
 
+EvidenceGroups = list[tuple[frozenset[AtomicFormula], int]]
 
 def organize_evidence(evidence: set[AtomicFormula]) -> dict[Const, set[AtomicFormula]]:
     element2evidence = defaultdict(set)
@@ -132,23 +134,32 @@ def organize_evidence(evidence: set[AtomicFormula]) -> dict[Const, set[AtomicFor
     return element2evidence
 
 
+def _group_unary_evidence(
+    element2evidence: dict[Const, set[AtomicFormula]],
+    domain: set[Const],
+) -> EvidenceGroups:
+    
+    evi_size = defaultdict(int)
+    for evidence in element2evidence.values():
+        evi_size[frozenset(evidence)] += 1
+
+    # NOTE: empty frozenset represents non unary evidence
+    n_elements_with_evidence = sum(evi_size.values())
+    if len(domain) - n_elements_with_evidence > 0:
+        evi_size[frozenset()] = len(domain) - n_elements_with_evidence
+    return list(evi_size.items())
+
+
 def unary_evidence_to_ccs(element2evidence: dict[Const, set[AtomicFormula]],
                           domain: set[Const]) \
         -> tuple[QFFormula, list[tuple[Pred, str, int]], int]:
     """
     Convert unary evidence to cardinality constraints
     """
-    evi_size = defaultdict(int)
-    for _, evidence in element2evidence.items():
-        evi_size[frozenset(evidence)] += 1
-    # NOTE: empty frozenset represents non unary evidence
-    n_elements_with_evidence = sum(evi_size.values())
-    if len(domain) - n_elements_with_evidence > 0:
-        evi_size[frozenset()] = len(domain) - n_elements_with_evidence
     formula = top
     aux_preds = []
     ccs = list()
-    for evidence, size in evi_size.items():
+    for evidence, size in _group_unary_evidence(element2evidence, domain):
         aux_pred = new_predicate(1, AUXILIARY_PRED_NAME)
         aux_preds.append(aux_pred)
         aux_atom = aux_pred(X)
@@ -176,17 +187,10 @@ def unary_evidence_to_pc(element2evidence: dict[Const, set[AtomicFormula]],
     """
     Convert unary evidence to partition constraint
     """
-    evi_size = defaultdict(int)
-    for _, evidence in element2evidence.items():
-        evi_size[frozenset(evidence)] += 1
-    # NOTE: empty frozenset represents non unary evidence
-    n_elements_with_evidence = sum(evi_size.values())
-    if len(domain) - n_elements_with_evidence > 0:
-        evi_size[frozenset()] = len(domain) - n_elements_with_evidence
     formula = top
     aux_preds = []
     partition = list()
-    for evidence, size in evi_size.items():
+    for evidence, size in _group_unary_evidence(element2evidence, domain):
         aux_pred = new_predicate(1, AUXILIARY_PRED_NAME)
         aux_preds.append(aux_pred)
         aux_atom = aux_pred(X)
@@ -200,3 +204,18 @@ def unary_evidence_to_pc(element2evidence: dict[Const, set[AtomicFormula]],
         partition.append((aux_pred, size))
     formula = formula & exactly_one_qf(aux_preds)
     return formula, PartitionConstraint(partition)
+
+def unary_evidence_to_factorized_ccs(
+    element2evidence: dict[Const, set[AtomicFormula]],
+    domain: set[Const],
+) -> tuple[EvidenceGroups, Rational]:
+    """
+    Convert unary evidence to bucket sizes without adding auxiliary predicates.
+    Algorithms that enumerate cell-count configurations apply these buckets as
+    a combinatorial multiplier.
+    """
+    groups = _group_unary_evidence(element2evidence, domain)
+    repeat_factor = Rational(math.factorial(len(domain)), 1)
+    for _, size in groups:
+        repeat_factor /= Rational(math.factorial(size), 1)
+    return groups, repeat_factor
