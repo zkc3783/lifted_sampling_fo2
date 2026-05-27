@@ -7,7 +7,14 @@ from contexttimer import Timer
 from wfomc.context import WFOMCContext, IncrementalWFOMC3Context
 from wfomc.network import UnaryEvidenceEncoding
 from wfomc.problems import WFOMCProblem
-from wfomc.algo import Algo,incremental_wfomc3, incremental_wfoms3 , analyze_all_sample
+from wfomc.algo import (
+    Algo,
+    analyze_all_sample,
+    incremental_wfomc3,
+    incremental_wfomc32,
+    incremental_wfoms3,
+    incremental_wfoms32,
+)
 from wfomc.utils import MultinomialCoefficients, Rational, round_rational
 from wfomc.parser import parse_input
 
@@ -42,9 +49,19 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         logger.info(f'Invoke WFOMC with {algo} algorithm and {unary_evidence_encoding} encoding')
 
         context = IncrementalWFOMC3Context(problem)
+        if algo == Algo.INCREMENTAL3:
+            wfomc_fn = incremental_wfomc3
+            wfoms_fn = incremental_wfoms3
+            analyze_samples = True
+        elif algo == Algo.INCREMENTAL32:
+            wfomc_fn = incremental_wfomc32
+            wfoms_fn = incremental_wfoms32
+            analyze_samples = False
+        else:
+            raise ValueError(f"Unsupported algorithm: {algo}")
     
         with Timer() as t:
-            res, all_sample_data = incremental_wfomc3(context)
+            res, all_sample_data = wfomc_fn(context)
             res = context.decode_result(res)
         logger.info('WFOMC time: {}', t.elapsed)
 
@@ -62,10 +79,11 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         
         logger.info('Start sampling for {} times', sample_time)
         with Timer() as t:
-            all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time)
+            all_sample_results = wfoms_fn(context, all_sample_data, sample_time)
         logger.info('Sampling time: {}', t.elapsed)
         
-        analyze_all_sample(all_sample_results)
+        if analyze_samples:
+            analyze_all_sample(all_sample_results)
 
         return res
         
