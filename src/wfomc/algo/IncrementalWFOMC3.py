@@ -643,9 +643,9 @@ def incremental_wfoms3(context: IncrementalWFOMC3Context, all_sample_data: tuple
                     
                 nowK = nextK
 
-            perm = np.random.permutation(domain_size)
-            Sampled_1type = Sampled_1type[perm]
-            Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
+            # perm = np.random.permutation(domain_size)
+            # Sampled_1type = Sampled_1type[perm]
+            # Sampled_2table_matrix = Sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((Sampled_1type, Sampled_2table_matrix))
         all_sample_results.append(one_sample_result)
 
@@ -672,10 +672,12 @@ def analyze_all_sample(all_sample_results):
     def clean1type(cell: Cell) -> list[AtomicFormula]:
         evidences: set[AtomicFormula] = set()
         for i, p in enumerate(cell.preds):
+            if not cell.code[i]:
+                continue
             if p.name.startswith('@') or 'aux' in p.name.lower(): 
                 continue
             atom = p(*([X] * p.arity))
-            evidences.add(atom) if (cell.code[i]) else evidences.add(~atom)
+            evidences.add(atom)
         return list(evidences)
     
     def clean2table(two_table: FrozenSet[AtomicFormula] = None) -> tuple[list[AtomicFormula], list[AtomicFormula]]:

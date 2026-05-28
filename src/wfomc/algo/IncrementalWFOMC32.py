@@ -765,9 +765,9 @@ def incremental_wfoms32(
 
                 nowK = nextK
 
-            perm = np.random.permutation(domain_size)
-            sampled_1type = sampled_1type[perm]
-            sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
+            # perm = np.random.permutation(domain_size)
+            # sampled_1type = sampled_1type[perm]
+            # sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((sampled_1type, sampled_2table_matrix))
 
         all_sample_results.append(one_sample_result)
