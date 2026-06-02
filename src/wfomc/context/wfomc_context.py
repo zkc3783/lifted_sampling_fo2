@@ -32,7 +32,8 @@ class WFOMCContext:
 
     def __init__(self, problem: WFOMCProblem,
                  unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS,
-                 factorize_unary_evidence: bool = False):
+                 factorize_unary_evidence: bool = False,
+                 direct_evidence_enumeration: bool = False):
         
         self.problem = deepcopy(problem)
         self.domain: set[Const] = self.problem.domain
@@ -44,6 +45,11 @@ class WFOMCContext:
 
         self.unary_evidence_encoding = unary_evidence_encoding
         self.factorize_unary_evidence = factorize_unary_evidence
+        # When True the algorithm enumerates only the configurations consistent
+        # with the factorized evidence (via iter_consistent_configs), so the
+        # bucket-assignment multiplicity is applied directly and the
+        # domain!/prod(bucket_size!) repeat factor must NOT be folded in.
+        self.direct_evidence_enumeration = direct_evidence_enumeration
         self.factorized_unary_evidence: EvidenceGroups = []
         self.partition_constraint: PartitionConstraint | None = None
         self.element2evidence: dict[Const, set[AtomicFormula]] = dict()
@@ -325,7 +331,11 @@ class WFOMCContext:
         self.factorized_unary_evidence, repeat_factor = unary_evidence_to_factorized_ccs(
             self.element2evidence, self.domain
         )
-        self.repeat_factor *= repeat_factor
+        # iter_consistent_configs applies the bucket multiplicity directly, so
+        # the combinatorial repeat factor is only needed by algorithms that
+        # still weight via make_unary_evidence_factor (e.g. incremental).
+        if not self.direct_evidence_enumeration:
+            self.repeat_factor *= repeat_factor
 
         logger.info(
             "Factorized unary evidence into {} bucket(s)",

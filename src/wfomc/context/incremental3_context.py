@@ -58,7 +58,8 @@ def _build_binary_evidence(ext_preds: list[Pred], cnt_preds: list[Pred]) -> list
 class IncrementalWFOMC3Context(WFOMCContext):
     def __init__(self, problem: WFOMCProblem,
                  unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS,
-                 factorize_unary_evidence: bool = False):
+                 factorize_unary_evidence: bool = False,
+                 direct_evidence_enumeration: bool = False):
         # Initialise IncrementalWFOMC3-specific mutable state before calling
         # super().__init__(), because _build() is dispatched from within
         # WFOMCContext.__init__ and needs these to be ready.
@@ -86,6 +87,7 @@ class IncrementalWFOMC3Context(WFOMCContext):
             problem,
             unary_evidence_encoding,
             factorize_unary_evidence=factorize_unary_evidence,
+            direct_evidence_enumeration=direct_evidence_enumeration,
         )
 
         self._workaround_for_odd_degree()

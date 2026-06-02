@@ -11,9 +11,7 @@ from wfomc.algo import (
     Algo,
     analyze_all_sample,
     incremental_wfomc3,
-    incremental_wfomc32,
     incremental_wfoms3,
-    incremental_wfoms32,
 )
 from wfomc.utils import MultinomialCoefficients, Rational, round_rational
 from wfomc.parser import parse_input
@@ -47,24 +45,20 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         if problem.sentence.contain_modulo_counting_quantifier():
             logger.info('Modulo counting quantifier is found')
         logger.info(f'Invoke WFOMC with {algo} algorithm and {unary_evidence_encoding} encoding')
-
-        factorize_unary_evidence = True #algo in { Algo.INCREMENTAL3, Algo.INCREMENTAL32 }
-
-        context = IncrementalWFOMC3Context( problem, unary_evidence_encoding, factorize_unary_evidence )
         
         analyze_samples = True if sample_time <= 10 else False
-
-        if algo == Algo.INCREMENTAL3:
-            wfomc_fn = incremental_wfomc3
-            wfoms_fn = incremental_wfoms3
-        elif algo == Algo.INCREMENTAL32:
-            wfomc_fn = incremental_wfomc32
-            wfoms_fn = incremental_wfoms32
-        else:
-            raise ValueError(f"Unsupported algorithm: {algo}")
-    
+        factorize_unary_evidence = True #algo in { Algo.INCREMENTAL3, Algo.INCREMENTAL32 }
+        direct_evidence_enumeration = True
+        context = IncrementalWFOMC3Context(
+                problem,
+                unary_evidence_encoding,
+                factorize_unary_evidence=factorize_unary_evidence,
+                direct_evidence_enumeration=direct_evidence_enumeration,
+            )
+        
+        
         with Timer() as t:
-            res, all_sample_data = wfomc_fn(context)
+            res, all_sample_data = incremental_wfomc3(context)
             res = context.decode_result(res)
         logger.info('WFOMC time: {}', t.elapsed)
 
@@ -82,7 +76,7 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
         
         logger.info('Start sampling for {} times', sample_time)
         with Timer() as t:
-            all_sample_results = wfoms_fn(context, all_sample_data, sample_time)
+            all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time)
         logger.info('Sampling time: {}', t.elapsed)
         
         if analyze_samples:

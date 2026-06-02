@@ -24,7 +24,9 @@
 \forall X: (~PairedWithBD(X) | B(X)) &
 \forall X: (~PairedWithBD(X) | D(X)) &
 \forall X: (~C(X) | PairedWithAC(X) | PairedWithBC(X)) &
-\forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X))
+\forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X)) &
+\forall X: (\forall Y: (paired(X, Y) -> ((Male(X) & Female(Y)) | (Male(Y) & Female(X)) )) ) &
+\forall X: ((Male(X) & ~Female(X)) | (~Male(X) & Female(X)) )
 
 V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, a31, a32, a33, a34, a35, a36, a37, a38, a39, a40, a41, a42, a43, a44, a45, a46, a47}
 
@@ -34,4 +36,5 @@ V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, 
 1.414213562 1 PairedWithBD
 
 
-A(a0), A(a1), A(a2), A(a3), A(a4), A(a5), A(a6), A(a7), A(a8), A(a9), A(a10), A(a11), B(a12), B(a13), B(a14), B(a15), B(a16), B(a17), B(a18), B(a19), B(a20), B(a21), B(a22), B(a23), C(a24), C(a25), C(a26), C(a27), C(a28), C(a29), C(a30), C(a31), C(a32), C(a33), C(a34), C(a35), D(a36), D(a37), D(a38), D(a39), D(a40), D(a41), D(a42), D(a43), D(a44), D(a45), D(a46), D(a47)
+A(a0), A(a1), A(a2), A(a3), A(a4), A(a5), A(a6), A(a7), A(a8), A(a9), A(a10), A(a11), B(a12), B(a13), B(a14), B(a15), B(a16), B(a17), B(a18), B(a19), B(a20), B(a21), B(a22), B(a23), C(a24), C(a25), C(a26), C(a27), C(a28), C(a29), C(a30), C(a31), C(a32), C(a33), C(a34), C(a35), D(a36), D(a37), D(a38), D(a39), D(a40), D(a41), D(a42), D(a43), D(a44), D(a45), D(a46), D(a47),
+Male(a0), Male(a1), Male(a2), Male(a3), Male(a4), Male(a5), Male(a6), Male(a7), Male(a8), Male(a9), Male(a10), Male(a11), Male(a12), Male(a13), Male(a14), Male(a15), Male(a16), Male(a17), Male(a18), Male(a19), Male(a20), Male(a21), Male(a22), Male(a23), Female(a24), Female(a25), Female(a26), Female(a27), Female(a28), Female(a29), Female(a30), Female(a31), Female(a32), Female(a33), Female(a34), Female(a35), Female(a36), Female(a37), Female(a38), Female(a39), Female(a40), Female(a41), Female(a42), Female(a43), Female(a44), Female(a45), Female(a46), Female(a47)

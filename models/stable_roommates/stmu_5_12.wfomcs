@@ -42,7 +42,9 @@
 \forall X: (~PairedWithBE(X) | E(X)) &
 \forall X: (~C(X) | PairedWithAC(X) | PairedWithBC(X)) &
 \forall X: (~D(X) | PairedWithAD(X) | PairedWithBD(X)) &
-\forall X: (~E(X) | PairedWithAE(X) | PairedWithBE(X))
+\forall X: (~E(X) | PairedWithAE(X) | PairedWithBE(X)) &
+\forall X: (\forall Y: (paired(X, Y) -> ((Male(X) & Female(Y)) | (Male(Y) & Female(X)) )) ) &
+\forall X: ((Male(X) & ~Female(X)) | (~Male(X) & Female(X)) )
 
 V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11}
 
@@ -54,4 +56,5 @@ V = {a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11}
 1.414213562 1 PairedWithBE
 
 
-A(a0), A(a1), A(a2), B(a3), B(a4), B(a5), C(a6), C(a7), D(a8), D(a9), E(a10), E(a11)
+A(a0), A(a1), A(a2), B(a3), B(a4), B(a5), C(a6), C(a7), D(a8), D(a9), E(a10), E(a11),
+Male(a0),Male(a1),Male(a2),Male(a3),Male(a4),Male(a5),Female(a6),Female(a7),Female(a8),Female(a9),Female(a10),Female(a11)

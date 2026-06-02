@@ -123,6 +123,8 @@ def unary_evidence_clauses(preference_graph, agents):
             if preference_graph[i, j] > NEG_INF and preference_graph[j, i] > NEG_INF:
                 out.append(f"\\forall X: (~PairedWith{chr(i + base)}{chr(j + base)}(X) | {chr(base + i)}(X))")
                 out.append(f"\\forall X: (~PairedWith{chr(i + base)}{chr(j + base)}(X) | {chr(base + j)}(X))")
+    out.append("\\forall X: (\\forall Y: (paired(X, Y) -> ((Male(X) & Female(Y)) | (Male(Y) & Female(X)) )) )")
+    out.append("\\forall X: ((Male(X) & ~Female(X)) | (~Male(X) & Female(X)) )")
     return out
 
 
@@ -150,7 +152,8 @@ if __name__ == "__main__":
                                  [-1, -1, 3, 1], 
                                  [1, 2, -1, -1], 
                                  [1, 2, -1, -1]])  
-    agent_counts = [5,5,5,5] 
+    x=6
+    agent_counts = [x,x,x,x] 
 
     '''stm_{sum(agent_counts)}_5_wfomcs''' 
     # preference_graph = np.array([[-1, -1, 3, 2, 1], 
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     #                              [2, 1, -1, -1, -1], 
     #                              [1, 2, -1, -1, -1], 
     #                              [1, 2, -1, -1, -1]]) 
-    # agent_counts = [8,8,5,6,5] 
+    # agent_counts = [2,1,1,1,1] 
     # #12:33222
     # #16:44233
     # #20:55433
@@ -230,4 +233,6 @@ if __name__ == "__main__":
             base = ord('A')
             f.write("\n\n")
             f.write(", ".join(f"{chr(base + i)}(a{sum(agent_counts[:i]) + cur_agent})" for i, agent_count in enumerate(agent_counts) for cur_agent in range(agent_count)))
+            f.write(",\n")
+            f.write(", ".join(f"{"Male" if sum(agent_counts[:i]) + cur_agent < sum(agent_counts)/2  else "Female"}(a{sum(agent_counts[:i]) + cur_agent})" for i, agent_count in enumerate(agent_counts) for cur_agent in range(agent_count)))
             f.write("\n")
