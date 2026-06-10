@@ -1,4 +1,3 @@
-import math
 from abc import ABC
 from collections import defaultdict
 from enum import Enum
@@ -7,9 +6,13 @@ from typing import Callable, Iterable
 from loguru import logger
 from dataclasses import dataclass
 
+from flint import fmpq_mpoly
+
 from wfomc.fol import AUXILIARY_PRED_NAME, AtomicFormula, Const, Pred, X, QFFormula, top
 from wfomc.fol import exactly_one_qf, new_predicate
-from wfomc.utils import Rational, Poly, MultinomialCoefficients, coeff_dict, create_vars, expand
+from wfomc.utils import Expr, MultinomialCoefficients, RingElement, create_vars
+from wfomc.utils.polynomial_flint import filter_poly
+from wfomc.utils.polynomial_flint import to_symexpr
 
 
 class Constraint(ABC):
@@ -38,32 +41,25 @@ class CardinalityConstraint(Constraint):
             for constraint in self.constraints:
                 self.preds = list(set(self.preds).union(constraint[0].keys()))
 
-        self.gen_vars: list[Poly]
+        self.gen_vars: list[Expr] = list()
         self.validator: str = ""
 
     def empty(self) -> bool:
         return len(self.constraints) == 0
 
-    def transform_weighting(self, get_weight: Callable[[Pred], tuple[Poly, Poly]]) \
-            -> Iterable[tuple[Pred, tuple[Poly, Poly]]]:
-        new_weights: dict[Pred, tuple[Poly, Poly]] = {}
-        self.gen_vars = create_vars('x', len(self.preds))
-        for sym, pred in zip(self.gen_vars, self.preds):
+    def transform_weighting(self, get_weight: Callable[[Pred], tuple[Expr, Expr]]) \
+            -> dict[Pred, tuple[Expr, Expr]]:
+        new_weights: dict[Pred, tuple[Expr, Expr]] = {}
+        gen_vars = create_vars('x', len(self.preds))
+        for sym, pred in zip(gen_vars, self.preds):
             weight = get_weight(pred)
             new_weights[pred] = (weight[0] * sym, weight[1])
+            self.gen_vars.append(sym)
         return new_weights
 
-    def decode_poly(self, poly: Poly) -> Rational:
-        if isinstance(poly, Poly):
-            poly = expand(poly)
-            coeffs = coeff_dict(poly, self.gen_vars)
-            # logger.debug('coeffs: {}', list(coeffs))
-            res = Rational(0, 1)
-            for degrees, coeff in coeffs:
-                if self.valid(degrees):
-                    res += coeff
-            return res
-        return poly
+    def decode_poly(self, poly: fmpq_mpoly) -> RingElement:
+        res = filter_poly(poly, self.gen_vars, self.valid)
+        return res
 
     def valid(self, degrees: list[int]) -> bool:
         kwargs = zip((pred.name for pred in self.preds), degrees)
@@ -108,114 +104,3 @@ class CardinalityConstraint(Constraint):
     def __repr__(self):
         return str(self)
 
-
-class PartitionConstraint(Constraint):
-    def __init__(self, partition: list[tuple[Pred, int]]) -> None:
-        self.partition: list[tuple[Pred, int]] = partition
-
-    def __str__(self) -> str:
-        return 'Partition({})'.format(self.partition)
-
-
-class UnaryEvidenceEncoding(Enum):
-    # RETAIN = "retain"
-    CCS = "ccs"
-    PC = "pc"
-
-    def __str__(self):
-        return self.value
-
-EvidenceGroups = list[tuple[frozenset[AtomicFormula], int]]
-
-def organize_evidence(evidence: set[AtomicFormula]) -> dict[Const, set[AtomicFormula]]:
-    element2evidence = defaultdict(set)
-    for atom in evidence:
-        element2evidence[atom.args[0]].add(atom.substitute({atom.args[0]: X}))
-    return element2evidence
-
-
-def _group_unary_evidence(
-    element2evidence: dict[Const, set[AtomicFormula]],
-    domain: set[Const],
-) -> EvidenceGroups:
-    
-    evi_size = defaultdict(int)
-    for evidence in element2evidence.values():
-        evi_size[frozenset(evidence)] += 1
-
-    # NOTE: empty frozenset represents non unary evidence
-    n_elements_with_evidence = sum(evi_size.values())
-    if len(domain) - n_elements_with_evidence > 0:
-        evi_size[frozenset()] = len(domain) - n_elements_with_evidence
-    return list(evi_size.items())
-
-
-def unary_evidence_to_ccs(element2evidence: dict[Const, set[AtomicFormula]],
-                          domain: set[Const]) \
-        -> tuple[QFFormula, list[tuple[Pred, str, int]], int]:
-    """
-    Convert unary evidence to cardinality constraints
-    """
-    formula = top
-    aux_preds = []
-    ccs = list()
-    for evidence, size in _group_unary_evidence(element2evidence, domain):
-        aux_pred = new_predicate(1, AUXILIARY_PRED_NAME)
-        aux_preds.append(aux_pred)
-        aux_atom = aux_pred(X)
-        if len(evidence) > 0:
-            lits = list(
-                lit.substitute({lit.args[0]: X}) for lit in evidence
-            )
-            formula = formula & (
-                aux_atom.implies(reduce(lambda x, y: x & y, lits))
-            )
-        ccs.append((aux_pred, '=', size))
-    ns = tuple(n for _, _, n in ccs)
-    n_sum = sum(ns)
-    repeat_factor = (
-        MultinomialCoefficients.coef((n_sum, len(domain) - n_sum))
-        * MultinomialCoefficients.coef(ns)
-    )
-    formula = formula & exactly_one_qf(aux_preds)
-    return formula, ccs, repeat_factor
-
-
-def unary_evidence_to_pc(element2evidence: dict[Const, set[AtomicFormula]],
-                         domain: set[Const]) \
-        -> tuple[QFFormula, PartitionConstraint]:
-    """
-    Convert unary evidence to partition constraint
-    """
-    formula = top
-    aux_preds = []
-    partition = list()
-    for evidence, size in _group_unary_evidence(element2evidence, domain):
-        aux_pred = new_predicate(1, AUXILIARY_PRED_NAME)
-        aux_preds.append(aux_pred)
-        aux_atom = aux_pred(X)
-        if len(evidence) > 0:
-            lits = list(
-                lit.substitute({lit.args[0]: X}) for lit in evidence
-            )
-            formula = formula & (
-                aux_atom.implies(reduce(lambda x, y: x & y, lits))
-            )
-        partition.append((aux_pred, size))
-    formula = formula & exactly_one_qf(aux_preds)
-    return formula, PartitionConstraint(partition)
-
-def unary_evidence_to_factorized_ccs(
-    element2evidence: dict[Const, set[AtomicFormula]],
-    domain: set[Const],
-) -> tuple[EvidenceGroups, Rational]:
-    """
-    Convert unary evidence to bucket sizes without adding auxiliary predicates.
-    Algorithms that enumerate cell-count configurations apply these buckets as
-    a combinatorial multiplier.
-    """
-    groups = _group_unary_evidence(element2evidence, domain)
-    repeat_factor = Rational(math.factorial(len(domain)), 1)
-    for _, size in groups:
-        repeat_factor /= Rational(math.factorial(size), 1)
-    return groups, repeat_factor

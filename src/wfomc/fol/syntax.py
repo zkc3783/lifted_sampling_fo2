@@ -227,13 +227,18 @@ class QFFormula(Formula):
         :rtype Iterable[frozenset[Lit]]: models
         """
         if not self.satisfiable():
-            raise RuntimeError("Formula is not satisfiable")
+            return
 
+        # A formula with no atoms (e.g. a tautology like ``top``) has exactly
+        # one model: the empty assignment. The backend would otherwise yield a
+        # boolean constant (sympy ``True`` / ``None``) that is not a registered
+        # atom, so it is filtered out below.
         for model in backend.get_models(self.expr):
             yield frozenset(
                 backend.get_atom(
                     symbol) if value else ~backend.get_atom(symbol)
                 for symbol, value in model.items()
+                if symbol in backend.sym2atom
             )
 
     def substitute(self, substitution: dict[Term, Term]) -> QFFormula:
@@ -408,11 +413,12 @@ class Counting(Quantifier):
 
     def __post_init__(self):
         allowed = ['=', '!=', '<', '>', '<=', '>=', 'mod']
-        assert self.comparator in allowed, \
-            f"Unsupported comparator '{self.comparator}'"
+        if self.comparator not in allowed:
+            raise ValueError(f"Unsupported comparator '{self.comparator}'")
         if self.comparator == 'mod':
             r, k = self.count_param
-            assert 0 <= r < k, "Require 0 ≤ r < k"
+            if not 0 <= r < k:
+                raise ValueError("Require 0 ≤ r < k")
 
         object.__setattr__(self, 'quantifier', '\\exists')
 

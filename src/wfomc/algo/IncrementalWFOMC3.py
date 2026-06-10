@@ -1,21 +1,22 @@
 from __future__ import annotations
-
 import math
 from collections import defaultdict, deque, Counter
-from dataclasses import dataclass, field
 from itertools import product
 from typing import Callable
-
+from dataclasses import dataclass, field
+from flint import fmpq as Rational
 import numpy as np
 from loguru import logger
 
-from wfomc.algo.unary_evidence_factor import iter_consistent_configs
-from wfomc.cell_graph import build_cell_graphs
-from wfomc.context import CountingState, IncrementalWFOMC3Context
+from wfomc.context import (
+    CellConfigCoefficientBasis,
+    CellEvidenceAllocation,
+    CountingState,
+    IncrementalWFOMC3Context,
+)
 from wfomc.fol import Const, Pred
 from wfomc.utils import (
     MultinomialCoefficients,
-    Rational,
     RingElement,
     coeff_dict,
     expand,
@@ -27,17 +28,17 @@ from wfomc.fol.syntax import AtomicFormula, Const, Pred, X, a, b
 from wfomc.cell_graph.components import Cell
 from typing import FrozenSet
 
+# ---------------------------------------------------------------------------
+# Infrastructure
+# ---------------------------------------------------------------------------
+
+
 Config = tuple[int, ...]
-State = tuple[int, ...] # 元素当前所处的 cell + 存在量词满足状态
+State = tuple[int, ...]
 
 
 class ConfigSpace:
-    """
-    Compact immutable representation for DP configurations.
-
-    A configuration is just a flat tuple of counts in C-order;
-    shape/offset bookkeeping is centralized in this helper.
-    """
+    """Compact immutable representation for DP configurations."""
 
     __slots__ = (
         "shape",
@@ -63,20 +64,20 @@ class ConfigSpace:
         return self.state_to_offset[state]
 
     def count(self, config: Config, state: State) -> int:
-        return config[self.state_to_offset[state]]
+        return config[self.offset(state)]
 
     def inc(self, config: Config, state: State, amount: int = 1) -> Config:
-        offset = self.state_to_offset[state]
-        return config[:offset] + (config[offset] + amount,) + config[offset + 1 :]
+        offset = self.offset(state)
+        return config[:offset] + (config[offset] + amount,) + config[offset + 1:]
 
     def dec(self, config: Config, state: State, amount: int = 1) -> Config:
-        offset = self.state_to_offset[state]
-        return config[:offset] + (config[offset] - amount,) + config[offset + 1 :]
+        offset = self.offset(state)
+        return config[:offset] + (config[offset] - amount,) + config[offset + 1:]
 
     @staticmethod
     def add(left: Config, right: Config) -> Config:
         return tuple(a + b for a, b in zip(left, right))
-
+    
     @staticmethod
     def sub(left: Config, right: Config) -> Config:
         return tuple(a - b for a, b in zip(left, right))
@@ -91,7 +92,7 @@ class ConfigSpace:
             )
             self._nonzero_cache[config] = cached
         return cached
-
+    
     def cell_ext_one_offsets(self, num_ext: int) -> tuple[tuple[int, ...], ...]:
         """
         Offsets grouped by cell whose existential-counter slots are all 1.
@@ -113,7 +114,6 @@ class ConfigSpace:
         cached = tuple(tuple(offsets) for offsets in offsets_by_cell)
         self._cell_ext_one_offsets_cache[num_ext] = cached
         return cached
-
 
 @dataclass(slots=True)
 class SamplingDrNode:
@@ -191,6 +191,7 @@ class ConfigUpdater:
 
         return H
 
+
 # ---------------------------------------------------------------------------
 # Cell-graph weight builders
 # ---------------------------------------------------------------------------
@@ -217,7 +218,7 @@ def build_sample_weight(cells, cell_graph, state: CountingState) -> tuple:
         for idx, (pred, param) in enumerate(zip(state.cnt_preds, state.cnt_params)):
             if cells[i].is_positive(pred):
                 t.append(
-                    state.cnt_remainder[idx] - 1
+                    (state.cnt_remainder[idx] - 1) % param
                     if state.exist_mod and idx in state.mod_pred_index
                     else param - 1
                 )
@@ -312,40 +313,40 @@ def _stop_condition(target_c: State, state: CountingState) -> bool:
         for i in range(len(pred_state)):
             if i not in state.le_index and pred_state[i] != 0:
                 return False
+        return True
     else:
         return all(s == 0 for s in pred_state)
-    
+
+
 # ---------------------------------------------------------------------------
 # Algorithm
 # ---------------------------------------------------------------------------
 
 def _make_domain_recursion(
-    t_update_dict,
-    space: ConfigSpace,
-    cs: CountingState,
+    t_update_dict, space: ConfigSpace, 
+    cs: CountingState, 
     has_linear_order: bool,
     data_T: dict,
-    data_H: dict,
-) -> Callable[[Config], RingElement]:
+    data_H: dict ) -> Callable[[Config], RingElement]:
     """Return a memoised domain_recursion function scoped to one cell graph."""
 
     updater = ConfigUpdater(t_update_dict, space, data_H)
+    f = updater.f
     cache: dict[Config, RingElement] = {}
 
     def domain_recursion(config: Config):
-        cached = cache.get(config)
-        if cached is not None:
-            return cached
+        if config in cache:
+            return cache[config]
 
         if sum(config) == 0:
             return Rational(1, 1)
 
         result = Rational(0, 1)
         node = SamplingDrNode()
-        
         nonzero_states = space.nonzero_states(config)
         target_c_list = nonzero_states if has_linear_order else (nonzero_states[-1],)
 
+    
         for target_c in target_c_list:
             T = defaultdict(lambda: Rational(0, 1))
             config_new = space.dec(config, target_c)
@@ -359,10 +360,9 @@ def _make_domain_recursion(
                 G_new = defaultdict(lambda: Rational(0, 1))
                 l = space.count(config_new, other_c)
                 G_layer = defaultdict(list)
-                
 
                 for (tc, G_config), W in G.items():
-                    for (tc_new, H_config_new), weight_H in updater.f(tc, other_c, l).items():
+                    for (tc_new, H_config_new), weight_H in f(tc, other_c, l).items():
                         G_config_new = space.add(G_config, H_config_new)
 
                         if has_linear_order:
@@ -401,10 +401,8 @@ def _make_domain_recursion(
     return domain_recursion
 
 
-def incremental_wfomc3(context: IncrementalWFOMC3Context) -> tuple[RingElement, list[CellGraphDpTrace]]:
+def incremental_wfomc3(context: IncrementalWFOMC3Context) -> RingElement:
     domain: set[Const] = context.domain
-    formula = context.formula
-    get_weight = context.get_weight
     leq_pred: Pred = context.leq_pred
     cs = context.counting_state
     has_lo = context.contain_linear_order_axiom()
@@ -413,7 +411,8 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> tuple[RingElement, 
     domain_size = len(domain)
     MultinomialCoefficients.setup(domain_size)
     all_sample_data = []
-    for cell_graph, graph_weight in build_cell_graphs(formula, get_weight, leq_pred):
+
+    for cell_graph, graph_weight in context.build_cell_graphs(leq_pred=leq_pred):
         cells = cell_graph.get_cells()
         n_cells = len(cells)
 
@@ -422,27 +421,26 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> tuple[RingElement, 
         logger.debug("Weight w: {}", w)
 
         unary_mask = context.unary_handler.build_mask(cells)
-
         t_update_dict, data_Evi = build_sample_t_update_dict(rs, n_cells, cs)
         space = ConfigSpace((n_cells,) + tuple(cs.c_type_shape))
+        
         data_T = {}
         data_H = {}
         domain_recursion = _make_domain_recursion(t_update_dict, space, cs, has_lo, 
                                                   data_T, data_H)
         data_root = []
 
-        if has_lo:
-            # Linear order fixes the element ordering, so a config carries no
-            # multinomial coefficient; factorized evidence is disabled here.
-            config_source = (
-                (config, None) for config in multinomial(n_cells, domain_size)
+        allocation = context.cell_evidence_allocation(cells)
+        if allocation is None:
+            allocation = CellEvidenceAllocation.unconstrained(
+                n_cells, domain_size
             )
-        else:
-            # Enumerate only configs consistent with the unary evidence (all
-            # configs when there is none), each with its combined coefficient.
-            config_source = iter_consistent_configs(
-                cells, context.factorized_unary_evidence, domain_size
-            )
+        coefficient_basis = (
+            CellConfigCoefficientBasis.RELATIVE_TO_CELL_MULTINOMIAL
+            if has_lo
+            else CellConfigCoefficientBasis.ABSOLUTE
+        )
+        config_source = allocation.iter_config_coefficients(coefficient_basis)
 
         for config, coef in config_source:
             logger.debug("Config: {}", config)
@@ -455,19 +453,14 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> tuple[RingElement, 
                 init_state = (i,) + w2t[i]
                 init_list[space.offset(init_state)] = n
                 W = W * (w[i] ** n)
-
+            
             init_config = tuple(init_list)
             result_config = domain_recursion(init_config)
-
-            if has_lo:
-                term_weight = W * result_config * graph_weight
-            else:
-                term_weight = MultinomialCoefficients.coef(config) * W * result_config * graph_weight
-
+            term_weight = coef * W * result_config * graph_weight
             WFOMC_result += term_weight
             data_root.append((init_config, term_weight))
-
-        all_sample_data.append(
+    
+    all_sample_data.append(
             CellGraphDpTrace(
                 space=space,
                 cells=cells,
@@ -481,6 +474,7 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> tuple[RingElement, 
         )
 
     return expand(WFOMC_result), all_sample_data
+
 
 
 class AliasTable:
@@ -759,10 +753,7 @@ def incremental_wfoms3(
                             H_layer[(tc_new, hc_new)], H_target_degree
                         )
                         H_target_degree = d_WH
-
-                        all_two_tables = graph_data.data_Evi[(tc_old, other_c)][
-                            (tc_new, oc_new)
-                        ]
+                        all_two_tables = graph_data.data_Evi[(tc_old, other_c)][(tc_new, oc_new)]
                         two_tables = sample_poly(all_two_tables, d_rij)
                         sampled_2table = sample_poly(two_tables, d_rij)
 

@@ -1,6 +1,10 @@
 from __future__ import annotations
-from functools import reduce
+
 from collections import defaultdict
+from functools import reduce
+
+from sympy.logic.boolalg import And, Equivalent, Implies, Not, Or
+
 from .syntax import *
 
 PREDICATES = defaultdict(list)
@@ -21,7 +25,6 @@ def new_var(exclude: frozenset[Var]) -> Var:
 def new_predicate(arity: int, pred_name: str, used_pred_names: set[str] = None) -> Pred:
     """Creates a new predicate with a unique name."""
     global PREDICATES
-    # If used_pred_names is provided, use a simple indexed naming scheme
     if used_pred_names is not None:
         i = 0
         name = f'{pred_name}{i}'
@@ -30,7 +33,6 @@ def new_predicate(arity: int, pred_name: str, used_pred_names: set[str] = None) 
             name = f'{pred_name}{i}'
         return Pred(name, arity)
 
-    # Otherwise, use the global PREDICATES dictionary for uniqueness
     name = f'{pred_name}{len(PREDICATES[pred_name])}'
     p = Pred(name, arity)
     PREDICATES[pred_name].append(p)
@@ -53,7 +55,7 @@ def pad_vars(vars: frozenset[Var], arity: int) -> frozenset[Var]:
     ret_vars = set(vars)
     default_vars = [X, Y, Z]
     idx = 0
-    while (len(ret_vars) < arity):
+    while len(ret_vars) < arity:
         ret_vars.add(default_vars[idx])
         idx += 1
     return frozenset(list(ret_vars)[:arity])
@@ -63,7 +65,6 @@ def exactly_one_qf(preds: list[Pred]) -> QFFormula:
     if len(preds) == 1:
         return top
     lits = [p(X) for p in preds]
-    # p1(x) v p2(x) v ... v pm(x)
     formula = reduce(lambda x, y: x | y, lits) & \
         exclusive_qf(preds)
     return formula
@@ -94,15 +95,7 @@ def exclusive(preds: list[Pred]) -> QuantifiedFormula:
 
 
 def tseitin_transform(sentence):
-    """Transform an SC2 sentence so every existential/counting quantified
-    subformula has a single predicate atom as its innermost body.
-
-    For each ext/cnt formula whose innermost quantifier-free body is not a
-    single atom, introduce a fresh Tseitin predicate A(vars) and add
-    the equivalence (A(vars) <-> body) to the universal part. The existential/
-    counting formula is rewritten to use A(vars) directly.
-    """
-    # Import here to avoid a circular import (sc2.py imports from utils.py).
+    """Rewrite ext/cnt subformulas to dedicated Tseitin predicates."""
     from .sc2 import SC2
 
     canonical_order = [X, Y, Z]
@@ -123,11 +116,7 @@ def tseitin_transform(sentence):
         while isinstance(inner, QuantifiedFormula):
             scopes.append(inner.quantifier_scope)
             inner = inner.quantified_formula
-        # inner is a QFFormula. Always introduce a fresh Tseitin predicate
-        # (even if inner is already atomic) — WFOMC algorithms expect a
-        # dedicated auxiliary predicate for each ext/cnt subformula. The
-        # arity matches the quantifier-chain depth so that the pred has one
-        # argument per quantifier in canonical order.
+
         chain_vars = {scope.quantified_var for scope in scopes}
         args = tuple(v for v in canonical_order if v in chain_vars)
         aux_pred = new_predicate(len(args), TSEITIN_PRED_NAME)
@@ -135,6 +124,7 @@ def tseitin_transform(sentence):
         extra_equiv = extra_equiv & inner.equivalent(aux_atom)
         for v in args:
             bound_vars.add(v)
+
         rebuilt: Formula = aux_atom
         for scope in reversed(scopes):
             rebuilt = QuantifiedFormula(scope, rebuilt)
@@ -144,7 +134,6 @@ def tseitin_transform(sentence):
     new_cnt_formulas = [transform_one(f) for f in sentence.cnt_formulas]
 
     new_uni_body = uni_body & extra_equiv
-    # Ensure all variables referenced in the merged body are universally bound.
     existing_vars = {q.quantified_var for q in outer_quantifiers}
     final_quantifiers = list(outer_quantifiers)
     for v in canonical_order:
@@ -161,3 +150,22 @@ def tseitin_transform(sentence):
         ext_formulas=new_ext_formulas,
         cnt_formulas=new_cnt_formulas,
     )
+
+
+def formula_to_str(formula: Formula) -> str:
+    """Convert a formula to a string representation."""
+    if isinstance(formula, QuantifiedFormula):
+        return f"{formula.quantifier_scope}: ({formula_to_str(formula.quantified_formula)})"
+    if isinstance(formula, QFFormula):
+        return formula_to_str(formula.expr)
+    if isinstance(formula, And):
+        return "(" + " & ".join(formula_to_str(arg) for arg in formula.args) + ")"
+    if isinstance(formula, Or):
+        return "(" + " | ".join(formula_to_str(arg) for arg in formula.args) + ")"
+    if isinstance(formula, Not):
+        return f"~({formula_to_str(formula.args[0])})"
+    if isinstance(formula, Implies):
+        return f"({formula_to_str(formula.args[0])} -> {formula_to_str(formula.args[1])})"
+    if isinstance(formula, Equivalent):
+        return f"({formula_to_str(formula.args[0])} <-> {formula_to_str(formula.args[1])})"
+    return str(formula)

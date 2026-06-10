@@ -90,13 +90,13 @@ class FOLTransformer(Transformer):
         return param
 
     def counting_quantifier(self, args):
-        """process \exists_{=k}, \exists_{<=k}, …"""
+        r"""process \exists_{=k}, \exists_{<=k}, …"""
         comparator = args[0]
         k = int(args[1])
         return (QuantifiersEnum.COUNTING, (comparator, k))
 
     def mod_quantifier(self, args):
-        """
+        r"""
         process \exists_{r mod k}
         args = [r, k]
         return ('mod', (r, k))

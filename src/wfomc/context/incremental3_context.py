@@ -2,16 +2,17 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from itertools import product
+
 from loguru import logger
 
 from wfomc.fol.syntax import *
 from wfomc.fol import tseitin_transform
-from wfomc.network import UnaryEvidenceEncoding
 from wfomc.problems import WFOMCProblem
-from wfomc.utils import RingElement, Rational
+from wfomc.utils import RingElement
 
 from .wfomc_context import WFOMCContext
-from .unary_constraint import UnaryConstraintHandler
+from .unary_cardinality import UnaryCardinalityConstraintHandler
+from .unary_evidence import UnaryEvidenceStrategy
 
 
 @dataclass
@@ -56,14 +57,15 @@ def _build_binary_evidence(ext_preds: list[Pred], cnt_preds: list[Pred]) -> list
 
 
 class IncrementalWFOMC3Context(WFOMCContext):
-    def __init__(self, problem: WFOMCProblem,
-                 unary_evidence_encoding: UnaryEvidenceEncoding = UnaryEvidenceEncoding.CCS,
-                 factorize_unary_evidence: bool = False,
-                 direct_evidence_enumeration: bool = False):
+    def __init__(
+        self,
+        problem: WFOMCProblem,
+        unary_evidence_strategy: UnaryEvidenceStrategy = UnaryEvidenceStrategy.AUTO,
+    ):
         # Initialise IncrementalWFOMC3-specific mutable state before calling
         # super().__init__(), because _build() is dispatched from within
         # WFOMCContext.__init__ and needs these to be ready.
-        self.unary_handler = UnaryConstraintHandler()
+        self.unary_handler = UnaryCardinalityConstraintHandler()
 
         # Counting-quantifier parsing state (populated by _handle_* during _build)
         self._ext_preds: list[Pred] = []
@@ -85,55 +87,22 @@ class IncrementalWFOMC3Context(WFOMCContext):
 
         super().__init__(
             problem,
-            unary_evidence_encoding,
-            factorize_unary_evidence=factorize_unary_evidence,
-            direct_evidence_enumeration=direct_evidence_enumeration,
+            unary_evidence_strategy,
         )
-
-        self._workaround_for_odd_degree()
 
     # ------------------------------------------------------------------
     # Algorithm interface
     # ------------------------------------------------------------------
 
-    def decode_result(self, res: RingElement) -> Rational:
+    def decode_result(self, res: RingElement) -> RingElement:
         if self.leq_pred is not None:
-            res = res * Rational(math.factorial(len(self.domain)), 1)
+            res = res * math.factorial(len(self.domain))
         res = res / self.repeat_factor
+        if res == 0:
+            return res
         if self.contain_cardinality_constraint():
             res = self.cardinality_constraint.decode_poly(res)
         return res
-
-    # ------------------------------------------------------------------
-    # Post-build workaround
-    # ------------------------------------------------------------------
-
-    def _workaround_for_odd_degree(self):
-        """
-        For the odd-degree input example, the result needs to be divided by
-        the domain size. Detect that case by inspecting the *original*
-        pre-tseitin sentence for unary equality constraints on predicates
-        named "Odd" and "U".
-        """
-        eq_names: set[str] = set()
-        for cnt_formula in self.problem.sentence.cnt_formulas:
-            if not isinstance(cnt_formula, QuantifiedFormula):
-                continue
-            inner = cnt_formula.quantified_formula
-            if isinstance(inner, QuantifiedFormula):
-                continue  # binary counting quantifier
-            qscope = cnt_formula.quantifier_scope
-            if not (isinstance(qscope, Counting) and qscope.comparator == '='):
-                continue
-            if (
-                isinstance(inner, AtomicFormula)
-                and inner.pred.arity == 1
-                and inner.args == (qscope.quantified_var,)
-            ):
-                eq_names.add(inner.pred.name)
-        if 'Odd' in eq_names and 'U' in eq_names:
-            self.repeat_factor = len(self.problem.domain)
-            logger.info('change repeat factor to: {}', self.repeat_factor)
 
     # ------------------------------------------------------------------
     # _build and helpers
@@ -148,8 +117,7 @@ class IncrementalWFOMC3Context(WFOMCContext):
             self.formula = self.formula.quantified_formula
 
         if self.unary_evidence:
-            if not self._factorize_unary_evidence():
-                self._encode_unary_evidence()
+            self._apply_unary_evidence()
 
         if self.sentence.contain_counting_quantifier():
             self._handle_counting_quantifier()
@@ -159,11 +127,7 @@ class IncrementalWFOMC3Context(WFOMCContext):
                 ext_formula = ext_formula.quantified_formula
             self._ext_preds.append(ext_formula.pred)
 
-        if self.contain_cardinality_constraint():
-            self.cardinality_constraint.build()
-            self.weights.update(
-                self.cardinality_constraint.transform_weighting(self.get_weight)
-            )
+        self._prepare_cardinality_weights()
 
         self._handle_linear_order_axiom()
 
@@ -186,6 +150,8 @@ class IncrementalWFOMC3Context(WFOMCContext):
             binary_evidence=_build_binary_evidence(self._ext_preds, self._cnt_preds),
             c_type_shape=c_type_shape,
         )
+
+        self._convert_weights_to_ring_elements()
 
     def _handle_counting_quantifier(self):
         for formula in self.sentence.cnt_formulas:
@@ -211,34 +177,50 @@ class IncrementalWFOMC3Context(WFOMCContext):
                 kind, idx, inner_formula, qscope, cnt_param_raw, comparator
             )
 
+    def _get_counting_predicate(self, kind: str, inner_formula: Formula) -> Pred:
+        expected_arity = 1 if kind == "unary" else 2
+        if not (
+            isinstance(inner_formula, AtomicFormula) and
+            inner_formula.pred.arity == expected_arity
+        ):
+            raise TypeError(
+                f"{kind.capitalize()} counting quantifier requires a "
+                f"{'unary' if kind == 'unary' else 'binary'} atomic formula "
+                f"inside, but got {inner_formula}"
+            )
+        return inner_formula.pred
+
     def _handle_mod(self, kind, idx, inner_formula, qscope, param, _):
         """Handle ∃_{≡r (mod k)}."""
         r, k = param
+        pred = self._get_counting_predicate(kind, inner_formula)
         if kind == "unary":
-            self.unary_handler.add_mod(inner_formula.pred, r, k)
+            self.unary_handler.add_mod(pred, r, k)
         else:
             self._exist_mod = True
             self._mod_pred_index.append(idx)
             self._cnt_remainder.append(r)
             self._cnt_params.append(k)
-            self._cnt_preds.append(inner_formula.pred)
+            self._cnt_preds.append(pred)
 
     def _handle_eq(self, kind, idx, inner_formula, qscope, param, _):
         """Handle ∃_{=k}."""
+        pred = self._get_counting_predicate(kind, inner_formula)
         if kind == "unary":
-            self.unary_handler.add_eq(inner_formula.pred, param)
+            self.unary_handler.add_eq(pred, param)
         else:
             self._cnt_remainder.append(None)
             self._cnt_params.append(param)
-            self._cnt_preds.append(inner_formula.pred)
+            self._cnt_preds.append(pred)
 
     def _handle_le(self, kind, idx, inner_formula, qscope, param, _):
         """Handle ∃_{≤k}."""
+        pred = self._get_counting_predicate(kind, inner_formula)
         if kind == "unary":
-            self.unary_handler.add_le(inner_formula.pred, param)
+            self.unary_handler.add_le(pred, param)
         else:
             self._cnt_remainder.append(None)
             self._cnt_params.append(param)
-            self._cnt_preds.append(inner_formula.pred)
-            self._le_pred.append(inner_formula.pred)
+            self._cnt_preds.append(pred)
+            self._le_pred.append(pred)
             self._exist_le = True

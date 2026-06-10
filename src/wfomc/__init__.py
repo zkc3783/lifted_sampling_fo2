@@ -7,10 +7,11 @@ from .problems import WFOMCProblem, MLNProblem, MLN_to_WFOMC
 from .parser import parse_input
 from .parser.fol_parser import parse as fol_parse
 from .fol import *
-from .network import CardinalityConstraint, UnaryEvidenceEncoding
+from .network import CardinalityConstraint
+from .context import UnaryEvidenceStrategy
 from .solver import wfomc
-from .utils import Rational, expand, \
-    coeff_dict, coeff_monomial, round_rational, RingElement, MultinomialCoefficients, \
+from .result import WFOMCResult
+from .utils import Rational, Expr, Poly, round_rational, MultinomialCoefficients, \
     multinomial, multinomial_less_than
 
 
@@ -21,17 +22,17 @@ __all__ = [
     'MLN_to_WFOMC',
     'parse_input',
     'wfomc',
+    'WFOMCResult',
     'CardinalityConstraint',
-    'UnaryEvidenceEncoding',
+    'UnaryEvidenceStrategy',
     'SC2',
     'to_sc2',
     'fol_parse',
     'Rational',
-    'expand',
-    'coeff_dict',
-    'coeff_monomial',
     'round_rational',
-    'RingElement',
+    'Rational',
+    'Expr',
+    'Poly',
     'MultinomialCoefficients',
     'multinomial',
     'multinomial_less_than',
@@ -69,4 +70,5 @@ __all__ = [
     'U', 'V', 'W',
     'top', 'bot',
     'CardinalityConstraint',
+    'UnaryEvidenceStrategy',
 ]
