@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from flint import fmpq as Rational
 import numpy as np
 from loguru import logger
+import sys
 
 from wfomc.context import (
     CellConfigCoefficientBasis,
@@ -475,8 +476,6 @@ def incremental_wfomc3(context: IncrementalWFOMC3Context) -> RingElement:
 
     return expand(WFOMC_result), all_sample_data
 
-
-
 class AliasTable:
     """
     Vose's Alias Method for O(1) sampling from a discrete distribution.
@@ -572,11 +571,11 @@ class AliasTable:
         idx = i if np.random.rand() < self.prob[i] else self.alias[i]
         return self.choices[idx]
 
-
 def incremental_wfoms3(
     context: IncrementalWFOMC3Context,
     all_sample_data: list[CellGraphDpTrace],
-    sample_times: int,
+    sample_times: int = 1,
+    shuffle: bool = False
 ):
     cache_split_poly = {}
     cache_poly = {}
@@ -776,9 +775,10 @@ def incremental_wfoms3(
 
                 nowK = nextK
 
-            perm = np.random.permutation(domain_size)
-            sampled_1type = sampled_1type[perm]
-            sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
+            if shuffle is True:
+                perm = np.random.permutation(domain_size)
+                sampled_1type = sampled_1type[perm]
+                sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((sampled_1type, sampled_2table_matrix))
 
         all_sample_results.append(one_sample_result)
@@ -786,7 +786,7 @@ def incremental_wfoms3(
     return all_sample_results
 
 
-def analyze_all_sample(all_sample_results):
+def analyze_all_sample(all_sample_results, out=sys.stdout):
 
     def make_hashable(obj):
         if isinstance(obj, dict):
@@ -826,35 +826,7 @@ def analyze_all_sample(all_sample_results):
                 new_atom = AtomicFormula(atom.pred, (a, b), atom.positive)
                 tableba_normalized.append(new_atom)
         return tableab, tableba_normalized
-    
-    def goodprint(print_1type, print_2table):
-        domain_size = len(print_1type)
 
-        W = 20 # width
-        
-        print("-" * (W * (domain_size + 1)))
-        print("    Sampled 1-type:")
-        for i in range(domain_size,0,-1):
-            print(f"      e{i}: [{format_cell(print_1type[i-1])}]")
-
-        print("\n    Sampled 2-table:")
-     
-        header = f"{'':<{W}}" 
-        for j in range(domain_size, 0, -1):
-            col_label = f"e{j}_b"
-            header += f"{col_label:<{W}}"
-        print(header)
-
-        for i in range(domain_size, 0, -1):
-            row_label = f"      e{i}_a:"
-            row_str = f"{row_label:<{W}}"
-            
-            for j in range(domain_size, 0, -1):
-                cell_val = format_cell(print_2table[i-1][j-1])
-                row_str += f"{cell_val:<{W}}"
-            print(row_str)
-        print("-" * (W * (domain_size + 1)))
-    
     def cleansample(sample):
         Sampled_1type, Sampled_2table_matrix = sample
         domain_size = len(Sampled_1type) 
@@ -873,12 +845,40 @@ def analyze_all_sample(all_sample_results):
         
         return print_1type, print_2table
 
-    print(f"Displaying all {len(all_sample_results)} samples:")
+    def goodprint(print_1type, print_2table, out=sys.stdout):
+        domain_size = len(print_1type)
+        W = 20
+        print("-" * (W * (domain_size + 1)), file=out)
+        print("    Sampled 1-type:", file=out)
+        for i in range(domain_size, 0, -1):
+            print(
+                f"      e{i}: [{format_cell(print_1type[i-1])}]",
+                file=out
+            )
+        print("\n    Sampled 2-table:", file=out)
+        header = f"{'':<{W}}"
+        for j in range(domain_size, 0, -1):
+            col_label = f"e{j}_b"
+            header += f"{col_label:<{W}}"
+        print(header, file=out)
+        for i in range(domain_size, 0, -1):
+            row_label = f"      e{i}_a:"
+            row_str = f"{row_label:<{W}}"
+
+            for j in range(domain_size, 0, -1):
+                cell_val = format_cell(print_2table[i-1][j-1])
+                row_str += f"{cell_val:<{W}}"
+
+            print(row_str, file=out)
+
+        print("-" * (W * (domain_size + 1)), file=out)
+
     for idx1, one_sample in enumerate(all_sample_results):
-        print(f"Sample {idx1+1}:")
+        print(f"Sample {idx1+1}:", file=out)
         for idx2, graph_sample in enumerate(one_sample):
-            print(f" Cell Graph {idx2+1}")
-            goodprint(*cleansample(graph_sample))
+            print(f" Cell Graph {idx2+1}",file=out)
+            goodprint(*cleansample(graph_sample),out)
+    
 
     return 
     signatures= []

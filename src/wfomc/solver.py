@@ -69,7 +69,9 @@ def _validate_counting_quantifiers(problem: WFOMCProblem, algo: Algo) -> None:
 def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
           unary_evidence_strategy: UnaryEvidenceStrategy = UnaryEvidenceStrategy.AUTO,
           sample_time: int = 1,
-          debug: bool = False) -> WFOMCResult:
+          shuffle: bool = False,
+          debug: bool = False):
+    
     level = "DEBUG" if debug else "INFO"
     _handler_id = logger.add(
         sys.stderr, level=level, filter="wfomc", colorize=True, format=_LOG_FORMAT,
@@ -108,22 +110,18 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
 
         if sample_time <= 0:
             logger.info('No sampling since sample_time is {} ', sample_time)
-            return res
+            return res, None
         
         if res == Rational(0):
             logger.info('No sampling since WFOMC value is 0')
-            return res
+            return res, None
         
-        logger.info('Start sampling for {} times', sample_time)
+        logger.info('Start sampling for {} times, Shuffle:{}', sample_time, shuffle)
         with Timer() as t:
-            all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time)
+            all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time, shuffle)
         logger.info('Sampling time: {}', t.elapsed)
         
-        analyze_samples = True if sample_time <= 50 else False
-        if analyze_samples:
-            analyze_all_sample(all_sample_results)
-
-        return res
+        return res, all_sample_results
     
     finally:
         logger.remove(_handler_id)
@@ -138,15 +136,17 @@ def parse_args():
     parser.add_argument('--input', '-i', type=str, required=True,
                         help='mln file')
     parser.add_argument('--output_dir', '-o', type=str,
-                        default='./check-points')
+                        default=None)
     parser.add_argument('--algo', '-a', type=Algo,
                         choices=list(Algo), default=Algo.INCREMENTAL3)
     parser.add_argument('--unary_evidence_strategy', '-e', type=UnaryEvidenceStrategy,
                         choices=list(UnaryEvidenceStrategy),
                         default=UnaryEvidenceStrategy.AUTO)
-   
-    parser.add_argument('--sample-time', '-s', type=int, 
+    parser.add_argument('--sample_time', '-s', type=int, 
                         help='sample time', default = 0) 
+    parser.add_argument('--shuffle', '-r', type=bool, 
+                        help='shuffle ', default = False) 
+    
     parser.add_argument('--debug', action='store_true', default=False)
     args = parser.parse_args()
     return args
@@ -154,8 +154,6 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
 
     level = "DEBUG" if args.debug else "INFO"
 
@@ -165,24 +163,40 @@ def main() -> None:
         pass
 
     logger.add(
-        f'{args.output_dir}/log.txt',
+        f'check-points/log.txt',
         mode='w',
         level=level,
         filter="wfomc",
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{line} - {message}",
     )
-
+    
     with Timer() as t:
         problem = parse_input(args.input, debug=args.debug)
     print(f'Parse input: {t.elapsed:.4f}s')
+    sample_time=args.sample_time
+    output_dir = args.output_dir
 
-    res = wfomc(
-        problem, algo=args.algo,
+    res, all_sample_results = wfomc(
+        problem, 
+        algo=args.algo,
         unary_evidence_strategy=args.unary_evidence_strategy,
-        sample_time=args.sample_time,
-        debug=args.debug,
+        sample_time=sample_time,
+        shuffle=args.shuffle,
+        debug=args.debug
     )
     res=WFOMCResult(res)
+
+    if all_sample_results is not None:
+        
+        if output_dir is not None:
+            print(f"Write all {len(all_sample_results)} samples to {output_dir}")
+            with open(output_dir, "w", encoding="utf-8") as f:
+                analyze_all_sample(all_sample_results=all_sample_results, out=f)
+
+        elif sample_time <= 10:
+            print(f"Displaying all {len(all_sample_results)} samples:")
+            analyze_all_sample(all_sample_results=all_sample_results)
+
 
     print(f'WFOMC (arbitrary precision): {res}')
     const_res = res.constant_value()

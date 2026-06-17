@@ -18,7 +18,7 @@ $ uv run wfoms -i [input] -a [algo] -s [n_samples]
 ```
 For example:
 ```
-$ uv run wfoms -i ./models/stable_roommates/stmu_4_20.wfomcs -a incremental3 -s 1000
+$ uv run wfoms -i ./models/stable_roommates/stmu_5_12.wfomcs -o ./models/stable_roommates/stmu_5_12.sample -a incremental3 -s 10
 ```
 Find more arguments: 
 ```
@@ -109,9 +109,13 @@ person = 10
 More examples are in [models](models/)
 
 ## Output
-Sampling results will be formatted and printed to the terminal, but they will not be output if the number of samples exceeds 50. 
+Domain shuffle is disabled by deafult, use arg `--shuffle` (`-r`) to Enable or Disable (`True`/`False`)
 
->**Note: The sampling results are `all_sample_results` in `solver.py`. They will be printed if `analyze_samples` is True, and omitted otherwise.**
+If arg `--output_dir` (`-o`) is not empty, sampler will write results to files, otherwise, they will be printed to the terminal when `n_samples` <=10.
+
+If a predicate is false (e.g. `~F(a,b)` or `~Smoke(X)`), it will be hidden for readability.
+
+>**Note: If predicate are too long, formatting issues may occur. This can be resolved by adjusting the line width parameter `W = 20` in the `goodprint` function within `analyze_all_sample`.**
 
 ## References
 
