@@ -624,8 +624,14 @@ def incremental_wfoms3(
         d_1type = next(iter(d_1type_dict), ())
         return tuple(a - b for a, b in zip(global_target_degree, d_1type))
 
-    # 多项式乘积拆解采样器 在 (choices, weight_tuples) 中采样 (choice, dA, dB)，权重为多项式AB乘积中target_degree项的系数，一个choice可能有多个合法的(dA, dB)拆分组合
     def sample_split_poly(pairs, target_degree):
+        '''
+        Polynomial Product Decomposition Sampler:
+
+        Sample (choice, dA, dB) from (choices, weight_tuples), 
+        with weights equal to the coefficients of the target_degree term in the polynomial product AB.
+        A single choice may have multiple valid (dA, dB) decomposition combinations.
+        '''
         if not pairs:
             raise ValueError("No choices available for split sampling.")
 
@@ -650,8 +656,13 @@ def incremental_wfoms3(
 
         return sampler.sample()
 
-    #在pairs即(choice, poly)中采样 (choice), 权重为其 poly 中 target_degree 项的系数，没有则权重为0，返回被采样的 choice
     def sample_poly(pairs, target_degree):
+        '''
+        # Sample (choice) from pairs (choice, poly), with weight equal to 
+        # the coefficient of the target_degree term in its poly; 
+        # if absent, the weight is 0. Return the sampled choice.
+        '''
+        
         if not pairs:
             raise ValueError("No choices available for sampling.")
 
@@ -670,9 +681,9 @@ def incremental_wfoms3(
             cache_poly[cache_key] = sampler
 
         return sampler.sample()
-
-    # 根节点采样器
+   
     def sample_poly_root(data_root):
+        ''' root sampler '''
         cache_key = id(data_root)
         sampler = cache_root.get(cache_key)
         if sampler is None:
@@ -721,8 +732,6 @@ def incremental_wfoms3(
                 nowc = sample_poly(tgc_pairs, G_target_degree)
                 nowcfg = nextK
 
-                # 暂不支持线性序！ 外层循环每次选取 target_c 时，总是选择 np.argwhere(...) [-1]
-                # 因此可以预判剩余的 n-1 个元素分别会被赋予什么状态，并为每个状态保留正确的索引池。
                 state_to_indices = {}
                 curr_idx = n - 2
                 for state in reversed(space.nonzero_states(nextK)):
@@ -759,7 +768,6 @@ def incremental_wfoms3(
 
                         assigned_m = state_to_indices[oc_new].popleft()
                         sampled_2table_matrix[n - 1][assigned_m] = sampled_2table
-
                         tc_new = tc_old
                         hc_new = space.dec(hc_new, oc_new)
 
@@ -768,9 +776,9 @@ def incremental_wfoms3(
 
                 nowK = nextK
 
-            # perm = np.random.permutation(domain_size)
-            # sampled_1type = sampled_1type[perm]
-            # sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
+            perm = np.random.permutation(domain_size)
+            sampled_1type = sampled_1type[perm]
+            sampled_2table_matrix = sampled_2table_matrix[perm][:, perm]
             one_sample_result.append((sampled_1type, sampled_2table_matrix))
 
         all_sample_results.append(one_sample_result)
@@ -780,18 +788,15 @@ def incremental_wfoms3(
 
 def analyze_all_sample(all_sample_results):
 
-   
     def make_hashable(obj):
         if isinstance(obj, dict):
-            # 排序以保证字典顺序一致
             return tuple((k, make_hashable(obj[k])) for k in sorted(obj.keys()))
         elif isinstance(obj, list):
             return tuple(make_hashable(i) for i in obj)
         else:
-            # 将 R1(X,X) 等逻辑对象转为字符串
             return str(obj)
         
-    def format_cell(cell): # 去除难看的 list() 和中括号
+    def format_cell(cell): 
         if cell is None:
             return "-"
         return ", ".join(str(item) for item in cell)
@@ -824,8 +829,8 @@ def analyze_all_sample(all_sample_results):
     
     def goodprint(print_1type, print_2table):
         domain_size = len(print_1type)
-        # 1. 定义统一的列宽。如果谓词很长，可以把 15 改为 20。
-        W = 20
+
+        W = 20 # width
         
         print("-" * (W * (domain_size + 1)))
         print("    Sampled 1-type:")
@@ -833,22 +838,19 @@ def analyze_all_sample(all_sample_results):
             print(f"      e{i}: [{format_cell(print_1type[i-1])}]")
 
         print("\n    Sampled 2-table:")
-        # 2. 打印表头 (Col 标注)
-        # 第一列是空的，用来给行标签留位置
+     
         header = f"{'':<{W}}" 
         for j in range(domain_size, 0, -1):
             col_label = f"e{j}_b"
             header += f"{col_label:<{W}}"
         print(header)
-        # 3. 打印每一行 (Row 标注 + 矩阵内容)
+
         for i in range(domain_size, 0, -1):
             row_label = f"      e{i}_a:"
-            # 行首标签也占 W 宽，左对齐
             row_str = f"{row_label:<{W}}"
             
             for j in range(domain_size, 0, -1):
                 cell_val = format_cell(print_2table[i-1][j-1])
-                # 每个单元格都占 W 宽，左对齐
                 row_str += f"{cell_val:<{W}}"
             print(row_str)
         print("-" * (W * (domain_size + 1)))
@@ -863,7 +865,7 @@ def analyze_all_sample(all_sample_results):
         for i in range(domain_size):
             print_1type[i] = clean1type(Sampled_1type[i])
 
-        for i in range(domain_size): #这里因为shuffle了所以不是上三角矩阵了
+        for i in range(domain_size): 
             for j in range(domain_size):
                 if i == j or ( Sampled_2table_matrix[i][j] is None):
                     continue
@@ -871,20 +873,14 @@ def analyze_all_sample(all_sample_results):
         
         return print_1type, print_2table
 
+    print(f"Displaying all {len(all_sample_results)} samples:")
+    for idx1, one_sample in enumerate(all_sample_results):
+        print(f"Sample {idx1+1}:")
+        for idx2, graph_sample in enumerate(one_sample):
+            print(f" Cell Graph {idx2+1}")
+            goodprint(*cleansample(graph_sample))
 
-    samples = [res[0] for res in all_sample_results] # 假设采样只有一个graph
-    total_samples = len(samples)
-
-    print(f"Displaying all {total_samples} samples:")
-    #return #
-    for idx, sample in enumerate(samples):
-
-        print(f"Sample {idx+1}:")
-        goodprint(*cleansample(sample))
-
-
-    return #
-    #快速计数: 将对象转换为签名并利用 Counter 统计
+    return 
     signatures= []
     revprint = {}
     for sample in samples:
@@ -905,9 +901,8 @@ def analyze_all_sample(all_sample_results):
     print("=" * 35)
     for i, (sig, count) in enumerate(sorted_configs):
         print(f"Config {i+1:<4} | {count:<10} | {count/total_samples:<10.4f}")
-        goodprint(*cleansample(revprint[sig]))  # 打印对应签名的样本内容
+        goodprint(*cleansample(revprint[sig]))  
 
-    # 绘图部分
     plt.figure(figsize=(12, 6))
     bars = plt.bar(labels, frequencies, color='steelblue', alpha=0.8)
     for bar in bars:

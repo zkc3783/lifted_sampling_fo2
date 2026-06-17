@@ -119,7 +119,7 @@ def wfomc(problem: WFOMCProblem, algo: Algo = Algo.INCREMENTAL3,
             all_sample_results = incremental_wfoms3(context, all_sample_data, sample_time)
         logger.info('Sampling time: {}', t.elapsed)
         
-        analyze_samples = True if sample_time <= 10 else False
+        analyze_samples = True if sample_time <= 50 else False
         if analyze_samples:
             analyze_all_sample(all_sample_results)
 

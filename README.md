@@ -2,7 +2,28 @@
 
 This tool is for sampling instances or combinatorical structures from the two-variable fragment of first-order logic.
 
+### Installation
+Install the package:
+```
+$ cd lifted_sampling_fo2
+$ uv sync
+```
 
+
+### How to use
+Run the following command:
+```
+$ cd lifted_sampling_fo2
+$ uv run wfoms -i [input] -a [algo] -s [n_samples]
+```
+For example:
+```
+$ uv run wfoms -i ./models/stable_roommates/stmu_4_20.wfomcs -a incremental3 -s 1000
+```
+Find more arguments: 
+```
+$ uv run wfoms -h
+```
 
 ## Input format
 
@@ -87,31 +108,10 @@ person = 10
 
 More examples are in [models](models/)
 
+## Output
+Sampling results will be formatted and printed to the terminal, but they will not be output if the number of samples exceeds 50. 
 
-### Installation
-Install the package:
-```
-$ pip install -e .
-```
-
-
-### How to use
-Run the following command:
-```
-$ python sampling_fo2/sampler.py -i [input] -k [N] -s
-```
-Find more arguments: 
-```
-$ python sampling_fo2/sampler.py -h
-```
-
-## Bonus
-
-This repo also contains the code for WFOMC (the counting counterpart problem of first-order model sampling).
-Just run:
-```
-$ python sampling_fo2/wfomc.py -i [input]
-```
+>**Note: The sampling results are `all_sample_results` in `solver.py`. They will be printed if `analyze_samples` is True, and omitted otherwise.**
 
 ## References
 
